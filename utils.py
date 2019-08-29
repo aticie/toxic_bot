@@ -169,6 +169,8 @@ def add_avatar_rim(avatar_im, avatar_pos, avatar_size, hue):
 def image_from_cache_or_web(thing_id, url, folder):
 
     path = os.path.join(folder, thing_id+".jpg")
+    if not os.path.exists(folder):
+        os.mkdir(folder)
     if os.path.exists(path):
         image = cv2.imread(path)
     else:
@@ -182,6 +184,8 @@ def image_from_cache_or_web(thing_id, url, folder):
 
 def beatmap_from_cache_or_web(beatmap_id):
     
+    if not os.path.exists("Beatmaps"):
+        os.mkdir("Beatmaps")
     beatmap_id = str(beatmap_id)
     url = "https://osu.ppy.sh/osu/"+beatmap_id
     path = os.path.join("Beatmaps", beatmap_id+".osu")
