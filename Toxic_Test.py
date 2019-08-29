@@ -243,9 +243,6 @@ def create_recent_image(bmp_data, user_data, score_data, pp):
     flag_blurred = cv2.GaussianBlur(added_images, (5,5), cv2.BORDER_DEFAULT)
     added_images = add_images_by_mask(added_images, flag_blurred, flag_blur_mask)
     added_images = add_image_by_alpha(added_images, rank_im, rank_pos)
-    cv2.imshow("Flagged",added_images)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
     mod_pos_mid = (rank_pos[0]-60, rank_pos[1]+20)
     mod_img_shift = 25
     shift = [i-len(mod_list)//2 for i in range(len(mod_list))]
@@ -256,10 +253,10 @@ def create_recent_image(bmp_data, user_data, score_data, pp):
         mod_im = cv2.resize(mod_im, (45,45))
         added_images = add_image_by_alpha(added_images, mod_im, mod_pos)
     
-    light_font_name = "Fonts/Aller_Lt.ttf" 
-    bold_font_name = "Fonts/Aller_Bd.ttf"
-    reg_font_name = "Fonts/Aller_Rg.ttf"
-    display_font_name = "Fonts/Aller_Display.ttf"
+    light_font_name = "Fonts/OpenSans-Light.ttf" 
+    bold_font_name = "Fonts/OpenSans-Bold.ttf"
+    reg_font_name = "Fonts/OpenSans-Regular.ttf"
+    display_font_name = "Fonts/Aaargh.ttf"
     
     img_pil = Image.fromarray(added_images)
     draw = ImageDraw.Draw(img_pil)
@@ -274,31 +271,36 @@ def create_recent_image(bmp_data, user_data, score_data, pp):
     pp_pos = (player_name_pos[0], player_name_pos[1]+30)
     draw.text(pp_pos, pp_text, font = pp_text_font, fill = fill)
     
-    map_text = "{} - {} [{}] - {:.2f}* by {}".format(bmp_artist, bmp_title,bmp_diff_name, bmp_diff, bmp_creator)
+    map_text = "{} - {} [{}]".format(bmp_artist, bmp_title,bmp_diff_name)
     if len(map_text)>text_spill:
         map_text_lines = textwrap.wrap(map_text, width=text_spill)
         map_text_row = len(map_text_lines)
         map_text = "\n".join(map_text_lines)
-    map_text_font =ImageFont.truetype(light_font_name, 18)
+    map_text_font =ImageFont.truetype(reg_font_name, 30 - map_text_row*6)
     map_name_pos = (avatar_pos[0]-40, avatar_pos[1]+50)
     draw.multiline_text(map_name_pos, map_text, font = map_text_font, fill = fill, spacing=10)
-    
+    '''
     score_pos = (avatar_pos[0]-40, map_name_pos[1]+(map_text_row)*20)
     score_readable = make_readable_score(score)
     score_text = "{} - {:.2f}% - x{}/{}".format(score_readable, acc, combo, bmp_max_combo)
     score_text_font = ImageFont.truetype(reg_font_name, 18)
     draw.text(score_pos, score_text, font=score_text_font, fill = fill)
-    
+    '''
     bmp = beatmap_from_cache_or_web(bmp_id)
     pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count300, count100, count50, countmiss, mods, combo)
+    font_s = 20+int((pp_ss/100)*4)
     score_detail_pos = (avatar_pos[0]-40, map_name_pos[1]+(map_text_row)*20+30)
-    score_detail_text = "{:.0f}pp ({:.0f}pp if FC) \n%95-{:.0f}pp | SS-{:.0f}pp".format(pp_raw, pp_fc, pp_95, pp_ss)
-    score_detail_text_font = ImageFont.truetype(bold_font_name, 18)
-    draw.multiline_text(score_detail_pos, score_detail_text, font=score_detail_text_font, fill = fill, spacing=10)
+    score_detail_text = "{:.0f}pp".format(pp_raw)
+    score_detail_text_font = ImageFont.truetype(bold_font_name, font_s)
+    draw.text(score_detail_pos, score_detail_text, font=score_detail_text_font, fill = fill)
+    if rank=="F":
+        line1 = (score_detail_pos[0],score_detail_pos[1]+int(round(font_s*2/3)))+(score_detail_pos[0]+len(score_detail_text)*font_s*2/3,score_detail_pos[1]+int(round(font_s*2/3)))
+        draw.line(line1, fill=(0,0,0), width=3)
+
     
     timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
     date_text = "Played {}ago".format(timeago) 
-    date_text_font = ImageFont.truetype(light_font_name, 14)
+    date_text_font = ImageFont.truetype(light_font_name, 16)
     date_pos = (avatar_pos[0]-40, cropped_cover.shape[0]-35)
     draw.text(date_pos, date_text, font=date_text_font, fill = fill)
 
@@ -307,6 +309,7 @@ def create_recent_image(bmp_data, user_data, score_data, pp):
     b, g, r = img_pil.split()
     img_pil = Image.merge("RGB", (r, g, b))
     img_pil.save('test_recent.jpg', format="JPEG", subsampling=0, quality=100)
+    img_pil.show()
     
     print("Img modification takes {:.2f} sec".format(time.time()-img_mod_time))
     

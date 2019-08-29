@@ -12,6 +12,12 @@ import requests
 with open("mods.txt", "r") as f:
     all_mods = f.readlines()
 
+def strike(text):
+    result = ''
+    for c in text:
+        result = result + c + '\u0336'
+    return result
+
 def make_readable_score(score):
     
     if type(score) == type(0):
