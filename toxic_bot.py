@@ -43,6 +43,10 @@ async def recent(ctx, *args):
     else:
         osu_username = " ".join(args)
 
+    if osu_username == -1:
+        await ctx.send(f"`Önce profilini linkle MAL` <:omar:475326551936729115>")
+        return
+
     recent_play = get_recent(osu_username)
     if recent_play == -1:
         await ctx.send(f"`{osu_username} oyunu bırakmış quit w X:D`")

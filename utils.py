@@ -298,7 +298,10 @@ def get_osu_username(discord_id):
     with open(USER_LINK_FILE, "r") as f:
         users_dict = json.load(f)
 
-    return users_dict[discord_id]
+    if discord_id in users_dict:
+        return users_dict[discord_id]
+    else:
+        return -1
 
 
 def get_recent(user_id, limit=1):
