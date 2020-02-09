@@ -69,7 +69,7 @@ async def recent(ctx, *args):
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
-    title_text += title_text2 + f" +{mods_text}"
+    title_text += title_text2 + f" {mods_text}"
     osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
         user_data)
 
