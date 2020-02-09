@@ -361,7 +361,7 @@ def get_bmap_data(bmap_id, mods=0, limit=1):
 def get_cover_image(bmap_setid):
     covers_folder = "Covers"
     covers_local = os.listdir(covers_folder)
-    cover_image_name = f"{bmap_setid}.jpg"
+    cover_image_name = f"{bmap_setid}.png"
     cover_save_name = os.path.join(covers_folder, cover_image_name)
 
     if cover_image_name in covers_local:
