@@ -157,7 +157,6 @@ async def show_country(ctx, *args):
             end = min(num * 5, max_index)
 
             embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
             embed2.set_image(url=cover_url)
             embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
 
@@ -177,7 +176,6 @@ async def show_country(ctx, *args):
             end = min(num * 5, max_index)
 
             embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
             embed2.set_image(url=cover_url)
             embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
 
