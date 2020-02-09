@@ -276,7 +276,7 @@ def get_mods(mods):
     if "NC" in mod_list:
         mod_list.remove("DT")
 
-    mod_text = " ".join(mod_list)
+    mod_text = "+"+"".join(mod_list) if len(mod_list)>0 else ""
     return mod_list, mod_text
 
 
