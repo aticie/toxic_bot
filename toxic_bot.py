@@ -9,9 +9,11 @@ TOKEN = os.environ["DISCORD_TOKEN"]
 
 client = commands.Bot(command_prefix="*", case_insensitive=True)
 
+
 @client.event
 async def on_ready():
     print("We are ready to roll!")
+
 
 @client.event
 async def on_command_error(ctx, error):
@@ -22,6 +24,7 @@ async def on_command_error(ctx, error):
     else:
         print(error)
         return
+
 
 @client.command(name='osulink', aliases=['link'])
 async def link(ctx, *args):
@@ -39,7 +42,6 @@ async def link(ctx, *args):
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
-
     if len(args) == 0:
         author_id = ctx.message.author.id
         osu_username = get_osu_username(author_id)
@@ -55,17 +57,31 @@ async def recent(ctx, *args):
         await ctx.send(f"`{osu_username} oyunu bırakmış quit w X:D`")
         return
 
+    user_data = get_osu_user_data(username=osu_username)
     bmap_id = recent_play['beatmap_id']
     mods = recent_play['enabled_mods']
+    _, mods_text = get_mods(mods)
     bmap_data = get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
+    recent_image, diff_rating, max_combo = draw_recent_play(osu_username, recent_play, cover_img_bytes, bmap_data,
+                                                            cover_from_cache)
+    bmap_data["difficultyrating"] = diff_rating
+    bmap_data["max_combo"] = max_combo
+    title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
+    title_text += title_text2 + f" +{mods_text}"
+    osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
+        user_data)
 
-
-    recent_image = draw_recent_play(osu_username, recent_play, cover_img_bytes, bmap_data, cover_from_cache)
     recent_image.save("recent.png")
 
-    await ctx.send(file=discord.File('recent.png'))
+    desc_text = parse_recent_play(recent_play)
+
+    embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
+    embed.set_image(url="attachment://recent.png")
+    embed.set_author(name=f"Most recent play of {osu_username}", icon_url=f"https://a.ppy.sh/{player_id}?.png")
+
+    await ctx.send(embed=embed, file=discord.File('recent.png'))
 
     pass
 
@@ -73,23 +89,13 @@ async def recent(ctx, *args):
 @client.command(name='country', aliases=['ctr', 'ct'])
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, arg):
-
     bmap_id = arg
     bmap_data = get_bmap_data(bmap_id)
     country_data = get_country_rankings(bmap_data)
 
-    bmap_title = bmap_data["title"]
-    bmap_artist = bmap_data["artist"]
-    bmap_version = bmap_data["version"]
-    bmap_creator = bmap_data["creator"]
-    bmap_stars = float(bmap_data["difficultyrating"])
-    bmap_setid = bmap_data["beatmapset_id"]
-    title_text = f"{bmap_artist} - {bmap_title}"
-    desc_text = f"**({bmap_creator}) [{bmap_version}] {bmap_stars:.2f} ⭐**"
-    bmap_url = f"https://osu.ppy.sh/beatmapsets/{bmap_setid}#osu/{bmap_id}"
+    title_text, desc_text, bmap_url, cover_url = get_embed_text_from_beatmap(bmap_data)
 
     embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-    cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     embed.set_image(url=cover_url)
     embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
     if len(country_data) > 5:
@@ -101,7 +107,7 @@ async def show_country(ctx, arg):
 
     max_index = len(country_data)
     num = 1
-    max_page = math.ceil(max_index/5)
+    max_page = math.ceil(max_index / 5)
 
     if max_page <= 1:
         return
@@ -110,6 +116,7 @@ async def show_country(ctx, arg):
     while True:
         for react in reactmoji:
             await msg.add_reaction(react)
+
         def check_react(reaction, user):
             if reaction.message.id != msg.id:
                 return False
@@ -132,8 +139,8 @@ async def show_country(ctx, arg):
             if num < 1:
                 num = max_page
 
-            begin = (num-1)*5
-            end = min(num*5, max_index)
+            begin = (num - 1) * 5
+            end = min(num * 5, max_index)
 
             embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
             cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
@@ -152,8 +159,8 @@ async def show_country(ctx, arg):
             if num > max_page:
                 num = 1
 
-            begin = (num-1)*5
-            end = min(num*5, max_index)
+            begin = (num - 1) * 5
+            end = min(num * 5, max_index)
 
             embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
             cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"

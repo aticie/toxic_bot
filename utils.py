@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import colorsys
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 from oppai import *
 import json
@@ -273,11 +273,21 @@ def get_mods(mods):
             mod_list.append(mod.rstrip())
         i = i << 1
 
-    return mod_list
+    if "NC" in mod_list:
+        mod_list.remove("DT")
+
+    mod_text = " ".join(mod_list)
+    return mod_list, mod_text
 
 
 def link_user_on_file(user_osu_nickname, user_discord_id):
     user_discord_id = str(user_discord_id)
+
+    users_dict = {}
+    if not os.path.exists(USER_LINK_FILE):
+        os.makedirs("Users", exist_ok=True)
+        with open(USER_LINK_FILE, "w") as f:
+            json.dump(users_dict, f)
 
     with open(USER_LINK_FILE, "r") as link_list:
         users_dict = json.load(link_list)
@@ -295,6 +305,11 @@ def link_user_on_file(user_osu_nickname, user_discord_id):
 def get_osu_username(discord_id):
     discord_id = str(discord_id)
 
+    users_dict = {}
+    if not os.path.exists(USER_LINK_FILE):
+        os.makedirs("Users", exist_ok=True)
+        with open(USER_LINK_FILE, "w") as f:
+            json.dump(users_dict, f)
     with open(USER_LINK_FILE, "r") as f:
         users_dict = json.load(f)
 
@@ -316,6 +331,16 @@ def get_recent(user_id, limit=1):
     recent_data = req.json()[0]
 
     return recent_data
+
+
+def get_osu_user_data(username):
+    user_api_url = "https://osu.ppy.sh/api/get_user"
+    USER_PARAMS = {'k': OSU_API,  # Api key
+                   'u': username
+                   }
+    user_req = requests.get(url=user_api_url, params=USER_PARAMS)
+    user_data = user_req.json()[0]
+    return user_data
 
 
 def get_bmap_data(bmap_id, mods=0, limit=1):
@@ -393,7 +418,6 @@ def get_country_rankings(bmap_data):
 
 
 def parse_country_data(text):
-
     scores_array = text.split("\n")[5:-1]
 
     country_data = []
@@ -418,17 +442,16 @@ def parse_country_data(text):
 
 
 def add_embed_fields(embed, country_data, offset):
-
     for player_rank, score in enumerate(country_data):
         player_name = score["name"]
         player_score = score["score"]
         player_combo = score["combo"]
-        mods_list = get_mods(score["enabled_mods"])
+        mods_list, _ = get_mods(score["enabled_mods"])
         player_mods = "".join(mods_list) if len(mods_list) > 0 else "NoMod"
         player_acc = get_acc(score["count300"], score["count100"], score["count50"], score["countmiss"])
         player_score = make_readable_score(player_score)
         value_text = f"{player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods}"
-        player_text = f"**#{player_rank+offset+1} {player_name}**"
+        player_text = f"**#{player_rank + offset + 1} {player_name}**"
         embed.add_field(name=player_text, value=value_text, inline=False)
 
     return embed
@@ -462,14 +485,13 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     txt = Image.new('RGBA', cover.size, (255, 255, 255, 0))
     d = ImageDraw.Draw(txt)
-    
-    font_50 = ImageFont.truetype(os.path.join("Fonts","Exo2-MediumItalic.otf"), 50*2)
-    font_48 = ImageFont.truetype(os.path.join("Fonts","Exo2-MediumItalic.otf"), 48*2)
-    font_36 = ImageFont.truetype(os.path.join("Fonts","Exo2-BlackItalic.otf"), 36)
-    font_20 = ImageFont.truetype(os.path.join("Fonts","Exo2-ExtraBold.otf"), 22)
-    font_16 = ImageFont.truetype(os.path.join("Fonts","Exo2-Black.otf"), 16)
-    font_11 = ImageFont.truetype(os.path.join("Fonts","Exo2-ExtraBold.otf"), 13)
 
+    font_50 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 50 * 2)
+    font_48 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 48 * 2)
+    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36)
+    font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22)
+    font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16)
+    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13)
 
     diff_rating = float(bmap_data["difficultyrating"])
     mods = play_data["enabled_mods"]
@@ -495,16 +517,15 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     count_miss = play_data["countmiss"]
     play_combo = play_data["maxcombo"]
 
-    mods_list = get_mods(mods)
+    mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
     pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, count_miss, mods, play_combo)
-
 
     acc = get_acc(count300, count100, count50, count_miss)
 
     d.text((8, 42), f"{count100}x100 | {count50}x50 | {count_miss}xMiss | Mods:{mods_string}",
            fill=text_fill, font=font_11)
-    d.text((8, 58), f"{play_combo}/{max_combo} | %{acc:.2f} | played by {player_name}",
+    d.text((8, 58), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
            fill=text_fill, font=font_11)
 
     rank_color_dict = {"F": (250, 22, 63, 30),
@@ -525,21 +546,63 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     d.text((badge_width - 5 - pp_text_w, badge_height - 5 - pp_text_h), pp_text, fill=pp_text_fill, font=font_36)
 
-    circle = Image.new('RGBA', (cover.size[0]*2, cover.size[1]*2), (255, 255, 255, 0))
+    circle = Image.new('RGBA', (cover.size[0] * 2, cover.size[1] * 2), (255, 255, 255, 0))
     dc = ImageDraw.Draw(circle)
 
-    dc.ellipse([((badge_width - 75)*2, 5*2), ((badge_width - 5)*2, 75*2)], fill=rank_color)
-    if rank=="SH" or rank=="XH":
-        dc.text(((badge_width - 55 - 15)*2, 8*2), rank, fill=rank_text_color, font=font_48)
+    dc.ellipse([((badge_width - 75) * 2, 5 * 2), ((badge_width - 5) * 2, 75 * 2)], fill=rank_color)
+    if rank == "SH" or rank == "XH":
+        dc.text(((badge_width - 55 - 15) * 2, 8 * 2), rank, fill=rank_text_color, font=font_48)
     else:
-        dc.text(((badge_width - 55)*2, 8*2), rank, fill=rank_text_color, font=font_50)
+        dc.text(((badge_width - 55) * 2, 8 * 2), rank, fill=rank_text_color, font=font_50)
 
     circle = circle.resize(cover.size, resample=Image.BICUBIC)
 
     halfway_img = Image.alpha_composite(cover, txt)
     final_cover = Image.alpha_composite(halfway_img, circle)
 
-    return final_cover
+    return final_cover, diff_rating, max_combo
+
+
+def get_embed_text_from_beatmap(bmap_data):
+    bmap_title = bmap_data["title"]
+    bmap_artist = bmap_data["artist"]
+    bmap_version = bmap_data["version"]
+    bmap_creator = bmap_data["creator"]
+    bmap_stars = float(bmap_data["difficultyrating"])
+    bmap_setid = bmap_data["beatmapset_id"]
+    bmap_id = bmap_data["beatmap_id"]
+    title_text = f"{bmap_artist} - {bmap_title}"
+    desc_text = f"**({bmap_creator}) [{bmap_version}] {bmap_stars:.2f} ⭐**"
+    bmap_url = f"https://osu.ppy.sh/beatmapsets/{bmap_setid}#osu/{bmap_id}"
+    cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
+    return title_text, desc_text, bmap_url, cover_url
+
+
+def get_embed_text_from_profile(user_data):
+    osu_username = user_data["username"]
+    player_playcount = user_data["playcount"]
+    player_rank = user_data["pp_rank"]
+    player_country_rank = user_data["pp_country_rank"]
+    player_pp = user_data["pp_raw"]
+    player_id = user_data["user_id"]
+
+    return osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp
+
+
+def parse_recent_play(score_data):
+    score = score_data["score"]
+    combo = score_data["maxcombo"]
+    count50 = score_data["count50"]
+    count100 = score_data["count100"]
+    count300 = score_data["count300"]
+    countmiss = score_data["countmiss"]
+    _, mods_text = get_mods(score_data["enabled_mods"])
+    rank = score_data["rank"]
+    date = score_data["date"]
+    timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
+
+    return f'▸ Score Set {timeago}Ago\n'
+
 
 if __name__ == "__main__":
     bmap_data = get_bmap_data(978026)
