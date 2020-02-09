@@ -16,9 +16,12 @@ async def on_ready():
 @client.event
 async def on_command_error(ctx, error):
     if ctx.command == None:
-        pass
-    elif ctx.command.is_on_cooldown:
+        return
+    elif ctx.command.is_on_cooldown(ctx):
         await ctx.send(error)
+    else:
+        print(error)
+        return
 
 @client.command(name='osulink', aliases=['link'])
 async def link(ctx, *args):

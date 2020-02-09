@@ -462,12 +462,13 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     txt = Image.new('RGBA', cover.size, (255, 255, 255, 0))
     d = ImageDraw.Draw(txt)
-    font_50 = ImageFont.truetype("Fonts\\Exo2-MediumItalic.otf", 50*2)
-    font_48 = ImageFont.truetype("Fonts\\Exo2-MediumItalic.otf", 48*2)
-    font_36 = ImageFont.truetype("Fonts\\Exo2-BlackItalic.otf", 36)
-    font_20 = ImageFont.truetype("Fonts\\Exo2-ExtraBold.otf", 22)
-    font_16 = ImageFont.truetype("Fonts\\Exo2-Black.otf", 16)
-    font_11 = ImageFont.truetype("Fonts\\Exo2-ExtraBold.otf", 13)
+    
+    font_50 = ImageFont.truetype(os.path.join("Fonts","Exo2-MediumItalic.otf"), 50*2)
+    font_48 = ImageFont.truetype(os.path.join("Fonts","Exo2-MediumItalic.otf"), 48*2)
+    font_36 = ImageFont.truetype(os.path.join("Fonts","Exo2-BlackItalic.otf"), 36)
+    font_20 = ImageFont.truetype(os.path.join("Fonts","Exo2-ExtraBold.otf"), 22)
+    font_16 = ImageFont.truetype(os.path.join("Fonts","Exo2-Black.otf"), 16)
+    font_11 = ImageFont.truetype(os.path.join("Fonts","Exo2-ExtraBold.otf"), 13)
 
 
     diff_rating = float(bmap_data["difficultyrating"])
