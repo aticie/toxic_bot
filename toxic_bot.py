@@ -6,6 +6,7 @@ import math
 import os
 
 TOKEN = os.environ["DISCORD_TOKEN"]
+RECENT_MAP_ID = ""
 
 client = commands.Bot(command_prefix="*", case_insensitive=True)
 
@@ -42,6 +43,8 @@ async def link(ctx, *args):
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
+    global RECENT_MAP_ID
+
     if len(args) == 0:
         author_id = ctx.message.author.id
         osu_username = get_osu_username(author_id)
@@ -59,6 +62,7 @@ async def recent(ctx, *args):
 
     user_data = get_osu_user_data(username=osu_username)
     bmap_id = recent_play['beatmap_id']
+    RECENT_MAP_ID = bmap_id
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
     bmap_data = get_bmap_data(bmap_id, mods)
@@ -80,7 +84,7 @@ async def recent(ctx, *args):
     embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
     embed.set_image(url="attachment://recent.png")
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
-                     icon_url=f"https://a.ppy.sh/{player_id}?.png")
+                     icon_url=f"https://a.ppy.sh/{player_id}")
 
     await ctx.send(embed=embed, file=discord.File('recent.png'))
 
@@ -89,8 +93,17 @@ async def recent(ctx, *args):
 
 @client.command(name='country', aliases=['ctr', 'ct'])
 @commands.cooldown(1, 10, commands.BucketType.user)
-async def show_country(ctx, arg):
-    bmap_id = arg
+async def show_country(ctx, *args):
+    if len(args) == 0:
+        if RECENT_MAP_ID == "":
+            await ctx.send(
+                "Son zamanlarda map atılmamış ve sen de map id'si yazmadın LAN ALLAH MIYIM BEN NASIL BİLEBİLİRİM HANGİ MAPİN COUNTRYSİNİ İSTEDİĞİNİ?")
+            return
+        else:
+            bmap_id = RECENT_MAP_ID
+    else:
+        bmap_id = args[0]
+
     bmap_data = get_bmap_data(bmap_id)
     country_data = get_country_rankings(bmap_data)
 
