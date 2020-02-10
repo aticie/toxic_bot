@@ -10,14 +10,16 @@ RECENT_CHANNEL_DICT = {}
 
 client = commands.Bot(command_prefix="*", case_insensitive=True)
 
+
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
     num = 1
-    max_page = math.ceil(max_index / 5) # Show 5 results per page
+    max_page = math.ceil(max_index / 5)  # Show 5 results per page
 
     if max_page <= 1:
         return
-        
+
+    called_by = fixed_fields["callsign"]
     title_text = fixed_fields["title_text"]
     desc_text = fixed_fields["desc_text"]
     author_name = fixed_fields["author_name"]
@@ -43,6 +45,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
         except asyncio.TimeoutError:
             return await msg.clear_reactions()
 
+        embed2 = discord.Embed()
         if user != ctx.message.author:
             pass
         elif '⬅' in str(res.emoji):
@@ -53,14 +56,23 @@ async def add_pages(ctx, msg, data, fixed_fields):
 
             begin = (num - 1) * 5
             end = min(num * 5, max_index)
-
-            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            embed2.set_image(url=cover_url)
-            embed2.set_author(name=author_name, icon_url=author_icon_url)
-
             show_data = data[begin:end]
-            add_embed_fields_on_country(embed2, show_data, begin)
 
+            if called_by == "country":
+                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.role.color, url=bmap_url)
+                embed2.set_image(url=cover_url)
+                embed2.set_author(name=author_name, icon_url=author_icon_url)
+
+                add_embed_fields_on_country(embed2, show_data, begin)
+            elif called_by == "compare":
+                player_url = fixed_fields["player_url"]
+                avatar_url = fixed_fields["avatar_url"]
+
+                embed2 = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
+                embed2.set_image(url=cover_url)
+                embed2.set_author(name=author_name, url=player_url, icon_url=avatar_url)
+
+            embed2.set_footer(text=f"Page {num} of {max_page}")
             await msg.clear_reactions()
             await msg.edit(embed=embed2)
 
@@ -72,16 +84,25 @@ async def add_pages(ctx, msg, data, fixed_fields):
 
             begin = (num - 1) * 5
             end = min(num * 5, max_index)
-
-            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            embed2.set_image(url=cover_url)
-            embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-
             show_data = data[begin:end]
-            add_embed_fields_on_country(embed2, show_data, begin)
+            if called_by == "country":
+                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.role.color, url=bmap_url)
+                embed2.set_image(url=cover_url)
+                embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
+                add_embed_fields_on_country(embed2, show_data, begin)
+            elif called_by == "compare":
+                player_url = fixed_fields["player_url"]
+                avatar_url = fixed_fields["avatar_url"]
+
+                embed2 = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
+                embed2.set_image(url=cover_url)
+                embed2.set_author(name=author_name, url=player_url, icon_url=avatar_url)
+
+            embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
             await msg.edit(embed=embed2)
+
 
 @client.event
 async def on_ready():
@@ -113,7 +134,7 @@ async def link(ctx, *args):
     pass
 
 
-@client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt','rcent','rcnt', 'rec', 'rc', 'r'])
+@client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rcent', 'rcnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
     global RECENT_CHANNEL_DICT
 
@@ -135,8 +156,8 @@ async def recent(ctx, *args):
     user_data = get_osu_user_data(username=osu_username)
     bmap_id = recent_play['beatmap_id']
 
-    channel_id = ctx.message.channel.id # Discord channel id
-    RECENT_CHANNEL_DICT[channel_id] = bmap_id # Add recent play bmap id to recent-channel dictionary
+    channel_id = ctx.message.channel.id  # Discord channel id
+    RECENT_CHANNEL_DICT[channel_id] = bmap_id  # Add recent play bmap id to recent-channel dictionary
 
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
@@ -165,6 +186,7 @@ async def recent(ctx, *args):
 
     pass
 
+
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
 async def compare(ctx, *args):
     global RECENT_CHANNEL_DICT
@@ -183,29 +205,56 @@ async def compare(ctx, *args):
     else:
         osu_username = " ".join(args)
 
+    scores_data = get_user_scores_on_bmap(osu_username, bmap_id)
+    if len(scores_data) == 0:
+        await ctx.send(f"`{osu_username}` mapi oynamamış bile aK")
+        return
     user_data = get_osu_user_data(username=osu_username)
     bmap_data = get_bmap_data(bmap_id)
     osu_username = user_data["username"]
     player_id = user_data["user_id"]
-    song_title = bmap_data["title"]
-    author_name = f"Top osu! standard plays for {osu_username} on {song_title}"
-    author_url = f"https://osu.ppy.sh/users/{player_id}"
+    bmap_title = bmap_data["title"]
+    bmap_artist = bmap_data["artist"]
+    bmap_setid = bmap_data["beatmapset_id"]
+    bmap_version = bmap_data["version"]
+    author_name = f"Top osu! standard plays for {osu_username}"
+    bmap_url = f"https://osu.ppy.sh/beatmapsets/{bmap_setid}#osu/{bmap_id}"
+    player_url = f"https://osu.ppy.sh/users/{player_id}"
     avatar_url = f"http://s.ppy.sh/a/{player_id}"
+    cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
+    title_text = f"{bmap_artist} - {bmap_title} [{bmap_version}]"
+    bmp = beatmap_from_cache_or_web(bmap_id)
 
-    desc_text = ""
-    fixed_fields = {"title_text": title_text,
+
+    if len(scores_data) > 3:
+        desc_text = add_embed_description_on_compare(scores_data[:3], 0, bmp)
+    else:
+        desc_text = add_embed_description_on_compare(scores_data, 0, bmp)
+
+    max_pages = len(scores_data)//3+1
+    embed = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
+    embed.set_image(url=cover_url)
+    embed.set_author(name=author_name, url=player_url, icon_url=avatar_url)
+    embed.set_footer(text=f"Page 1 of {max_pages}")
+
+    fixed_fields = {"callsign": "compare",
+                    "title_text": title_text,
                     "desc_text": desc_text,
                     "author_name": author_name,
                     "author_icon_url": "https://osu.ppy.sh/images/flags/TR.png",
+                    "player_url": player_url,
+                    "avatar_url": avatar_url,
                     "cover_url": cover_url,
                     "bmap_url": bmap_url}
-    await add_pages(ctx, msgc, scores_data, fixed_fields)
+
+    msg = await ctx.send(embed=embed)
+
+    await add_pages(ctx, msg, scores_data, fixed_fields)
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
 async def show_map_score(ctx, *args):
-    
-    if len(args)!=2:
+    if len(args) != 2:
         await ctx.send("`Usage: *scores <map_link>|<map_id> <player_name>`")
         return
 
@@ -226,7 +275,6 @@ async def show_map_score(ctx, *args):
             return
 
     scores_data = get_user_scores_on_bmap(player_name, bmap_id)
-
 
 
 @client.command(name='country', aliases=['ctr', 'ct'])
@@ -268,15 +316,14 @@ async def show_country(ctx, *args):
 
     msg = await ctx.send(embed=embed)
 
-    fixed_fields = {"title_text": title_text,
+    fixed_fields = {"callsign": "country",
+                    "title_text": title_text,
                     "desc_text": desc_text,
                     "author_name": "Turkey Country Ranks",
                     "author_icon_url": "https://osu.ppy.sh/images/flags/TR.png",
                     "cover_url": cover_url,
                     "bmap_url": bmap_url}
-    await add_pages(ctx, msg, country_data,fixed_fields)
-
-
+    await add_pages(ctx, msg, country_data, fixed_fields)
 
 
 client.run(TOKEN)

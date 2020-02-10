@@ -469,6 +469,32 @@ def add_embed_fields_on_country(embed, country_data, offset):
 
     return embed
 
+def add_embed_description_on_compare(scores, offset, bmp):
+    desc_text = ""
+    for play_rank, score in enumerate(scores):
+        player_score = score["score"]
+        player_combo = score["maxcombo"]
+        mods = score["enabled_mods"]
+        _, mods_text = get_mods(mods)
+        diff_rate, max_combo= bmap_info_from_oppai(bmp, score["enabled_mods"])
+        count300 = score["count300"]
+        count100 = score["count100"]
+        count50 = score["count50"]
+        countmiss = score["countmiss"]
+        player_pp = float(score["pp"])
+        player_rank = score["rank"]
+        player_acc = get_acc(count300, count300, count50, countmiss)
+        player_score = make_readable_score(player_score)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, countmiss, mods, player_combo)
+        date = score["date"]
+        timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
+
+        desc_text += f"**{play_rank+offset+1}. {mods_text[1:]}** Score [{diff_rate:.2f}⭐]\n" \
+                     f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** ({pp_fc:.2f}pp for FC) ▸{player_acc:.2f}%\n" \
+                     f"{player_score} ▸ {player_combo}x/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
+                     f"▸Score set {timeago} ago"
+    return desc_text
+
 
 def draw_recent_play(player_name, play_data, background_image, bmap_data, from_cache=True):
 
