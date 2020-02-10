@@ -495,7 +495,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         desc_text += f"**{play_rank+offset+1}. {mods_text[1:]}** Score [{diff_rate:.2f}⭐]\n" \
                      f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** ({pp_fc:.2f}pp for FC) ▸{player_acc:.2f}%\n" \
                      f"{player_score} ▸ {player_combo}x/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
-                     f"▸Score set {timeago} ago"
+                     f"▸Score set {timeago} ago\n"
     return desc_text
 
 
