@@ -93,8 +93,52 @@ async def recent(ctx, *args):
 
     pass
 
+@client.command(name='compare', aliases=['cmp', 'c', 'cp'])
+async def compare(ctx, *args):
+    global RECENT_CHANNEL_DICT
 
-@client.command(name='country', aliases=['ctr', 'ct', 'c'])
+    channel_id = ctx.message.channel.id
+    if channel_id not in RECENT_CHANNEL_DICT:
+            await ctx.send(
+                "Son zamanlarda map atılmamış, neyle neyi karşılaştırmamı bekliyorsun allah aşkına ya bezdim resmen")
+            return
+        else:
+            bmap_id = RECENT_CHANNEL_DICT[channel_id]
+
+    if len(args) == 0:
+        author_id = ctx.message.author.id
+        osu_username = get_osu_username(author_id)
+    else:
+        osu_username = " ".join(args)
+
+
+@client.command(name='scores', aliases=['score', 'sc', 's'])
+async def show_map_score(ctx, *args):
+    
+    if len(args)!=2:
+        await ctx.send("`Usage: *scores <map_link>|<map_id> <player_name>`")
+        return
+
+    map_link = args[0]
+    player_name = args[1]
+    if map_link.startswith("http"):
+        bmap_id = args[0].split("/")[-1]
+        try:
+            bmap_id = int(bmap_id)
+        except:
+            await ctx.send(f"`Beatmap linkiyle ilgili bi sıkıntı var: {map_link}`")
+            return
+    else:
+        try:
+            bmap_id = int(map_link)
+        except:
+            await ctx.send(f"`Beatmap id'siyle ilgili bi sıkıntı var: {map_link}`")
+            return
+
+    scores_data = get_user_scores_on_bmap(player_name, bmap_id)
+
+
+@client.command(name='country', aliases=['ctr', 'ct'])
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, *args):
     global RECENT_CHANNEL_DICT
@@ -108,7 +152,7 @@ async def show_country(ctx, *args):
         else:
             bmap_id = RECENT_CHANNEL_DICT[channel_id]
     else:
-        if args.startwith("http"):
+        if args.startswith("http"):
             bmap_id = args[0].split("/")[-1]
         else:
             bmap_id = args[0]
@@ -122,9 +166,9 @@ async def show_country(ctx, *args):
     embed.set_image(url=cover_url)
     embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
     if len(country_data) > 5:
-        embed = add_embed_fields(embed, country_data[:5], 0)
+        embed = add_embed_fields_on_country(embed, country_data[:5], 0)
     else:
-        embed = add_embed_fields(embed, country_data, 0)
+        embed = add_embed_fields_on_country(embed, country_data, 0)
 
     msg = await ctx.send(embed=embed)
 
@@ -170,7 +214,7 @@ async def show_country(ctx, *args):
             embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
 
             show_data = country_data[begin:end]
-            add_embed_fields(embed2, show_data, begin)
+            add_embed_fields_on_country(embed2, show_data, begin)
 
             await msg.clear_reactions()
             await msg.edit(embed=embed2)
@@ -189,7 +233,7 @@ async def show_country(ctx, *args):
             embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
 
             show_data = country_data[begin:end]
-            add_embed_fields(embed2, show_data, begin)
+            add_embed_fields_on_country(embed2, show_data, begin)
 
             await msg.clear_reactions()
             await msg.edit(embed=embed2)

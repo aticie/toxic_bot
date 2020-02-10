@@ -321,11 +321,11 @@ def get_osu_username(discord_id):
 
 def get_recent(user_id, limit=1):
     rs_api_url = 'https://osu.ppy.sh/api/get_user_recent'
-    PARAMS = {'k': OSU_API,  # Api key
+    params = {'k': OSU_API,  # Api key
               'u': user_id,
               'limit': limit}
 
-    req = requests.get(url=rs_api_url, params=PARAMS)
+    req = requests.get(url=rs_api_url, params=params)
     if len(req.json()) == 0:
         return -1
     recent_data = req.json()[0]
@@ -335,10 +335,10 @@ def get_recent(user_id, limit=1):
 
 def get_osu_user_data(username):
     user_api_url = "https://osu.ppy.sh/api/get_user"
-    USER_PARAMS = {'k': OSU_API,  # Api key
+    user_params = {'k': OSU_API,  # Api key
                    'u': username
                    }
-    user_req = requests.get(url=user_api_url, params=USER_PARAMS)
+    user_req = requests.get(url=user_api_url, params=user_params)
     user_data = user_req.json()[0]
     return user_data
 
@@ -347,15 +347,28 @@ def get_bmap_data(bmap_id, mods=0, limit=1):
     bmap_api_url = "https://osu.ppy.sh/api/get_beatmaps"
     mods = int(mods)
     bmap_id = int(bmap_id)
-    BMAP_PARAMS = {'k': OSU_API,  # Api key
+    bmap_params = {'k': OSU_API,  # Api key
                    'b': bmap_id,
                    'mods': mods,
                    'limit': limit}
 
-    bmap_req = requests.get(url=bmap_api_url, params=BMAP_PARAMS)
+    bmap_req = requests.get(url=bmap_api_url, params=bmap_params)
     bmap_data = bmap_req.json()[0]
 
     return bmap_data
+
+
+def get_user_scores_on_bmap(player_name, bmap_id):
+    score_api_url = "https://osu.ppy.sh/api/get_scores"
+    bmap_id = int(bmap_id)
+    score_params = {'k': OSU_API,  # Api key
+                   'b': bmap_id,
+                   'u': player_name}
+    
+    score_req = requests.get(url=score_api_url, params=score_params)
+    score_data = score_req.json()
+
+    return score_data
 
 
 def get_cover_image(bmap_setid):
@@ -395,7 +408,7 @@ def get_country_rankings(bmap_data):
     bmap_setid = bmap_data["beatmapset_id"]
 
     f = f"{bmap_artist} - {bmap_title} ({bmap_creator}) [{bmap_version}].osu"
-    PARAMS = {
+    params = {
         's': 0,
         'vv': 4,
         'v': 4,
@@ -410,7 +423,7 @@ def get_country_rankings(bmap_data):
     }
 
     print(f)
-    r = requests.get(country_url, headers=headers, params=PARAMS)
+    r = requests.get(country_url, headers=headers, params=params)
 
     country_data = parse_country_data(r.text)
 
@@ -441,7 +454,7 @@ def parse_country_data(text):
     return country_data
 
 
-def add_embed_fields(embed, country_data, offset):
+def add_embed_fields_on_country(embed, country_data, offset):
     for player_rank, score in enumerate(country_data):
         player_name = score["name"]
         player_score = score["score"]
