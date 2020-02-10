@@ -481,11 +481,14 @@ def add_embed_description_on_compare(scores, offset, bmp):
         count100 = score["count100"]
         count50 = score["count50"]
         countmiss = score["countmiss"]
-        player_pp = float(score["pp"])
         player_rank = score["rank"]
         player_acc = get_acc(count300, count300, count50, countmiss)
         player_score = make_readable_score(player_score)
         pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, countmiss, mods, player_combo)
+        try:
+            player_pp = float(score["pp"])
+        except:
+            player_pp = pp_raw
         date = score["date"]
         timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
 
