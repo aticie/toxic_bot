@@ -458,9 +458,7 @@ def add_embed_fields(embed, country_data, offset):
 
 
 def draw_recent_play(player_name, play_data, background_image, bmap_data, from_cache=True):
-    badge_width = 400
-    badge_height = 125
-    badge_size = (badge_width, badge_height)
+
 
     bmapset_id = bmap_data["beatmapset_id"]
     bmap_id = play_data["beatmap_id"]
@@ -473,11 +471,9 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     cover = cover.convert("RGBA")
     w, h = cover.size
-    crop_box = (50, 0, w - 50, h)
-    cover = cover.crop(crop_box)
+    badge_width = w
+    badge_height = h
 
-    print(cover.size)  # DEBUG
-    cover = cover.resize(badge_size, Image.BICUBIC)
     cover = cover.filter(ImageFilter.GaussianBlur(5))
 
     overlay_black = Image.new('RGBA', cover.size, (0, 0, 0, 180))
@@ -488,10 +484,10 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     font_50 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 50 * 2)
     font_48 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 48 * 2)
-    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36)
-    font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22)
-    font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16)
-    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13)
+    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36*2)
+    font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22*2)
+    font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16*2)
+    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13*2)
 
     diff_rating = float(bmap_data["difficultyrating"])
     mods = play_data["enabled_mods"]
@@ -508,8 +504,8 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     name_w, _ = d.textsize(bmap_name, font_20)
     if name_w > 325:
         bmap_name = f"{bmap_name[:25]}~"
-    d.text((8, 0), bmap_name, fill=text_fill, font=font_20)
-    d.text((8, 26), bmap_misc, fill=text_fill, font=font_11)
+    d.text((15, 0), bmap_name, fill=text_fill, font=font_20)
+    d.text((15, 50), bmap_misc, fill=text_fill, font=font_11)
 
     count300 = play_data["count300"]
     count100 = play_data["count100"]
@@ -523,9 +519,9 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     acc = get_acc(count300, count100, count50, count_miss)
 
-    d.text((8, 42), f"{count100}x100 | {count50}x50 | {count_miss}xMiss | Mods:{mods_string}",
+    d.text((8, 85), f"{count100}x100 | {count50}x50 | {count_miss}xMiss | Mods:{mods_string}",
            fill=text_fill, font=font_11)
-    d.text((8, 58), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
+    d.text((8, 115), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
            fill=text_fill, font=font_11)
 
     rank_color_dict = {"F": (250, 22, 63, 30),
@@ -546,16 +542,14 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     d.text((badge_width - 5 - pp_text_w, badge_height - 5 - pp_text_h), pp_text, fill=pp_text_fill, font=font_36)
 
-    circle = Image.new('RGBA', (cover.size[0] * 2, cover.size[1] * 2), (255, 255, 255, 0))
+    circle = Image.new('RGBA', cover.size, (255, 255, 255, 0))
     dc = ImageDraw.Draw(circle)
 
-    dc.ellipse([((badge_width - 75) * 2, 5 * 2), ((badge_width - 5) * 2, 75 * 2)], fill=rank_color)
+    dc.ellipse([((badge_width - 150) , 10 ), ((badge_width - 10) , 150 )], fill=rank_color)
     if rank == "SH" or rank == "XH":
-        dc.text(((badge_width - 55 - 15) * 2, 8 * 2), rank, fill=rank_text_color, font=font_48)
+        dc.text(((badge_width - 110 - 30) , 16), rank, fill=rank_text_color, font=font_48)
     else:
-        dc.text(((badge_width - 55) * 2, 8 * 2), rank, fill=rank_text_color, font=font_50)
-
-    circle = circle.resize(cover.size, resample=Image.BICUBIC)
+        dc.text(((badge_width - 110), 16), rank, fill=rank_text_color, font=font_50)
 
     halfway_img = Image.alpha_composite(cover, txt)
     final_cover = Image.alpha_composite(halfway_img, circle)

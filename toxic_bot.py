@@ -104,6 +104,7 @@ async def show_country(ctx, *args):
         if channel_id not in RECENT_CHANNEL_DICT:
             await ctx.send(
                 "Son zamanlarda map atılmamış ve sen de map id'si yazmadın LAN ALLAH MIYIM BEN NASIL BİLEBİLİRİM HANGİ MAPİN COUNTRYSİNİ İSTEDİĞİNİ?")
+            return
         else:
             bmap_id = RECENT_CHANNEL_DICT[channel_id]
     else:
