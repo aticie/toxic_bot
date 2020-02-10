@@ -6,7 +6,7 @@ import math
 import os
 
 TOKEN = os.environ["DISCORD_TOKEN"]
-RECENT_MAP_ID = ""
+RECENT_CHANNEL_DICT = {}
 
 client = commands.Bot(command_prefix="*", case_insensitive=True)
 
@@ -41,9 +41,9 @@ async def link(ctx, *args):
     pass
 
 
-@client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rec', 'rc', 'r'])
+@client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt','rcent','rcnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
-    global RECENT_MAP_ID
+    global RECENT_CHANNEL_DICT
 
     if len(args) == 0:
         author_id = ctx.message.author.id
@@ -52,7 +52,7 @@ async def recent(ctx, *args):
         osu_username = " ".join(args)
 
     if osu_username == -1:
-        await ctx.send(f"`Önce profilini linkle MAL` <:omar:475326551936729115>")
+        await ctx.send(f"`Önce profilini linkle` <:omar:475326551936729115>\n`Örnek: *link heyronii`")
         return
 
     recent_play = get_recent(osu_username)
@@ -62,7 +62,10 @@ async def recent(ctx, *args):
 
     user_data = get_osu_user_data(username=osu_username)
     bmap_id = recent_play['beatmap_id']
-    RECENT_MAP_ID = bmap_id
+
+    channel_id = ctx.message.channel.id # Discord channel id
+    RECENT_CHANNEL_DICT[channel_id] = bmap_id # Add recent play bmap id to recent-channel dictionary
+
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
     bmap_data = get_bmap_data(bmap_id, mods)
@@ -91,18 +94,23 @@ async def recent(ctx, *args):
     pass
 
 
-@client.command(name='country', aliases=['ctr', 'ct'])
+@client.command(name='country', aliases=['ctr', 'ct', 'c'])
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, *args):
+    global RECENT_CHANNEL_DICT
+    channel_id = ctx.message.channel.id
+
     if len(args) == 0:
-        if RECENT_MAP_ID == "":
+        if channel_id not in RECENT_CHANNEL_DICT:
             await ctx.send(
                 "Son zamanlarda map atılmamış ve sen de map id'si yazmadın LAN ALLAH MIYIM BEN NASIL BİLEBİLİRİM HANGİ MAPİN COUNTRYSİNİ İSTEDİĞİNİ?")
-            return
         else:
-            bmap_id = RECENT_MAP_ID
+            bmap_id = RECENT_CHANNEL_DICT[channel_id]
     else:
-        bmap_id = args[0]
+        if args.startwith("http"):
+            bmap_id = args[0].split("/")[-1]
+        else:
+            bmap_id = args[0]
 
     bmap_data = get_bmap_data(bmap_id)
     country_data = get_country_rankings(bmap_data)
@@ -121,7 +129,7 @@ async def show_country(ctx, *args):
 
     max_index = len(country_data)
     num = 1
-    max_page = math.ceil(max_index / 5)
+    max_page = math.ceil(max_index / 5) # Show 5 results per page
 
     if max_page <= 1:
         return
