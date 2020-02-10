@@ -485,7 +485,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         count50 = score["count50"]
         countmiss = score["countmiss"]
         player_rank = score["rank"]
-        player_acc = get_acc(count300, count300, count50, countmiss)
+        player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
         pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, countmiss, mods, player_combo)
         try:
