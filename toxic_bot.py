@@ -175,13 +175,13 @@ async def recent(ctx, *args):
 
     recent_image.save("recent.png")
 
-    desc_text = parse_recent_play(recent_play)
+    footer_text = parse_recent_play(recent_play)
 
-    embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
+    embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
     embed.set_image(url="attachment://recent.png")
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                      icon_url=f"http://s.ppy.sh/a/{player_id}")
-
+    embed.set_footer(text=footer_text)
     await ctx.send(embed=embed, file=discord.File('recent.png'))
 
     pass
