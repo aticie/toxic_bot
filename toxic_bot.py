@@ -235,7 +235,8 @@ async def compare(ctx, *args):
     embed = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
     embed.set_image(url=cover_url)
     embed.set_author(name=author_name, url=player_url, icon_url=avatar_url)
-    embed.set_footer(text=f"Page 1 of {max_pages}")
+    if max_pages != 1:
+        embed.set_footer(text=f"Page 1 of {max_pages}")
 
     fixed_fields = {"callsign": "compare",
                     "title_text": title_text,
@@ -253,15 +254,9 @@ async def compare(ctx, *args):
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
-async def show_map_score(ctx, *args):
-    if len(args) != 2:
-        await ctx.send("`Usage: *scores <map_link>|<map_id> <player_name>`")
-        return
-
-    map_link = args[0]
-    player_name = args[1]
+async def show_map_score(ctx, map_link, player_name):
     if map_link.startswith("http"):
-        bmap_id = args[0].split("/")[-1]
+        bmap_id = map_link.split("/")[-1]
         try:
             bmap_id = int(bmap_id)
         except:
@@ -275,6 +270,7 @@ async def show_map_score(ctx, *args):
             return
 
     scores_data = get_user_scores_on_bmap(player_name, bmap_id)
+
 
 
 @client.command(name='country', aliases=['ctr', 'ct'])

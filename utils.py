@@ -276,7 +276,9 @@ def get_mods(mods):
     if "NC" in mod_list:
         mod_list.remove("DT")
 
-    mod_text = "+"+"".join(mod_list) if len(mod_list) > 0 else ""
+    mod_text = "+" + "".join(mod_list) if len(mod_list) > 0 else ""
+    if mod_text == "+":
+        mod_text = "+NoMod"
     return mod_list, mod_text
 
 
@@ -362,9 +364,9 @@ def get_user_scores_on_bmap(player_name, bmap_id):
     score_api_url = "https://osu.ppy.sh/api/get_scores"
     bmap_id = int(bmap_id)
     score_params = {'k': OSU_API,  # Api key
-                   'b': bmap_id,
-                   'u': player_name}
-    
+                    'b': bmap_id,
+                    'u': player_name}
+
     score_req = requests.get(url=score_api_url, params=score_params)
     score_data = score_req.json()
 
@@ -469,6 +471,7 @@ def add_embed_fields_on_country(embed, country_data, offset):
 
     return embed
 
+
 def add_embed_description_on_compare(scores, offset, bmp):
     desc_text = ""
     for play_rank, score in enumerate(scores):
@@ -476,7 +479,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         player_combo = score["maxcombo"]
         mods = score["enabled_mods"]
         _, mods_text = get_mods(mods)
-        diff_rate, max_combo= bmap_info_from_oppai(bmp, score["enabled_mods"])
+        diff_rate, max_combo = bmap_info_from_oppai(bmp, score["enabled_mods"])
         count300 = score["count300"]
         count100 = score["count100"]
         count50 = score["count50"]
@@ -492,7 +495,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         date = score["date"]
         timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%d %H:%M:%S'))
 
-        desc_text += f"**{play_rank+offset+1}. {mods_text[1:]}** Score [{diff_rate:.2f}⭐]\n" \
+        desc_text += f"**{play_rank + offset + 1}. {mods_text[1:]}** Score [{diff_rate:.2f}⭐]\n" \
                      f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** ({pp_fc:.2f}pp for FC) ▸{player_acc:.2f}%\n" \
                      f"{player_score} ▸ {player_combo}x/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
                      f"▸Score set {timeago} ago\n"
@@ -500,8 +503,6 @@ def add_embed_description_on_compare(scores, offset, bmp):
 
 
 def draw_recent_play(player_name, play_data, background_image, bmap_data, from_cache=True):
-
-
     bmapset_id = bmap_data["beatmapset_id"]
     bmap_id = play_data["beatmap_id"]
     bmp = beatmap_from_cache_or_web(bmap_id)
@@ -526,10 +527,11 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     font_50 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 50 * 2)
     font_48 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 48 * 2)
-    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36*2)
-    font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22*2)
-    font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16*2)
-    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13*2)
+    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36 * 2)
+    font_18 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 14 * 2)
+    font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22 * 2)
+    font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16 * 2)
+    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13 * 2)
 
     diff_rating = float(bmap_data["difficultyrating"])
     mods = play_data["enabled_mods"]
@@ -579,17 +581,25 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     rank_color = rank_color_dict[rank]
     rank_text_color = (rank_color[0], rank_color[1], rank_color[2], 180)
     pp_text_fill = (163, 163, 163, 200) if rank == "F" else (255, 255, 255, 200)
+    pp_fc_text_fill = (255, 255, 255, 200)
     pp_text = f"{pp_raw:.2f}PP"
     pp_text_w, pp_text_h = d.textsize(pp_text, font_36)
 
-    d.text((badge_width - 5 - pp_text_w, badge_height - 5 - pp_text_h), pp_text, fill=pp_text_fill, font=font_36)
+    combo_eps = 15
+    if int(play_combo) + combo_eps < int(max_combo):
+        pp_fc_text = f"({pp_fc:.2f}pp for FC)"
+        pp_fc_text_w, pp_fc_text_h = d.textsize(pp_fc_text, font_18)
+        d.text((badge_width - 10 - pp_fc_text_w, badge_height - 5 - pp_fc_text_h), pp_fc_text, fill=pp_fc_text_fill, font=font_18)
+        d.text((badge_width - 10 - pp_text_w, badge_height - 5 - pp_text_h - pp_fc_text_h), pp_text, fill=pp_text_fill, font=font_36)
+    else:
+        d.text((badge_width - 10 - pp_text_w, badge_height - 10 - pp_text_h), pp_text, fill=pp_text_fill, font=font_36)
 
     circle = Image.new('RGBA', cover.size, (255, 255, 255, 0))
     dc = ImageDraw.Draw(circle)
 
-    dc.ellipse([((badge_width - 150) , 10 ), ((badge_width - 10) , 150 )], fill=rank_color)
+    dc.ellipse([((badge_width - 150), 10), ((badge_width - 10), 150)], fill=rank_color)
     if rank == "SH" or rank == "XH":
-        dc.text(((badge_width - 110 - 30) , 16), rank, fill=rank_text_color, font=font_48)
+        dc.text(((badge_width - 110 - 30), 16), rank, fill=rank_text_color, font=font_48)
     else:
         dc.text(((badge_width - 110), 16), rank, fill=rank_text_color, font=font_50)
 
