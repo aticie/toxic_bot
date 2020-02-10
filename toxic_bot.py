@@ -10,6 +10,78 @@ RECENT_CHANNEL_DICT = {}
 
 client = commands.Bot(command_prefix="*", case_insensitive=True)
 
+async def add_pages(ctx, msg, data, fixed_fields):
+    max_index = len(data)
+    num = 1
+    max_page = math.ceil(max_index / 5) # Show 5 results per page
+
+    if max_page <= 1:
+        return
+        
+    title_text = fixed_fields["title_text"]
+    desc_text = fixed_fields["desc_text"]
+    author_name = fixed_fields["author_name"]
+    author_icon_url = fixed_fields["author_icon_url"]
+    bmap_url = fixed_fields["bmap_url"]
+    cover_url = fixed_fields["cover_url"]
+    reactmoji = ['⬅', '➡']
+    while True:
+        for react in reactmoji:
+            await msg.add_reaction(react)
+
+        def check_react(reaction, user):
+            if reaction.message.id != msg.id:
+                return False
+            if user != ctx.message.author:
+                return False
+            if str(reaction.emoji) not in reactmoji:
+                return False
+            return True
+
+        try:
+            res, user = await client.wait_for('reaction_add', timeout=30.0, check=check_react)
+        except asyncio.TimeoutError:
+            return await msg.clear_reactions()
+
+        if user != ctx.message.author:
+            pass
+        elif '⬅' in str(res.emoji):
+            print('<< Going backward')
+            num -= 1
+            if num < 1:
+                num = max_page
+
+            begin = (num - 1) * 5
+            end = min(num * 5, max_index)
+
+            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
+            embed2.set_image(url=cover_url)
+            embed2.set_author(name=author_name, icon_url=author_icon_url)
+
+            show_data = data[begin:end]
+            add_embed_fields_on_country(embed2, show_data, begin)
+
+            await msg.clear_reactions()
+            await msg.edit(embed=embed2)
+
+        elif '➡' in str(res.emoji):
+            print('Going forward >>')
+            num += 1
+            if num > max_page:
+                num = 1
+
+            begin = (num - 1) * 5
+            end = min(num * 5, max_index)
+
+            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
+            embed2.set_image(url=cover_url)
+            embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
+
+            show_data = data[begin:end]
+            add_embed_fields_on_country(embed2, show_data, begin)
+
+            await msg.clear_reactions()
+            await msg.edit(embed=embed2)
 
 @client.event
 async def on_ready():
@@ -87,7 +159,7 @@ async def recent(ctx, *args):
     embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
     embed.set_image(url="attachment://recent.png")
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
-                     icon_url=f"https://a.ppy.sh/{player_id}")
+                     icon_url=f"http://s.ppy.sh/a/{player_id}")
 
     await ctx.send(embed=embed, file=discord.File('recent.png'))
 
@@ -99,17 +171,35 @@ async def compare(ctx, *args):
 
     channel_id = ctx.message.channel.id
     if channel_id not in RECENT_CHANNEL_DICT:
-            await ctx.send(
-                "Son zamanlarda map atılmamış, neyle neyi karşılaştırmamı bekliyorsun allah aşkına ya bezdim resmen")
-            return
-        else:
-            bmap_id = RECENT_CHANNEL_DICT[channel_id]
+        await ctx.send(
+            "Son zamanlarda map atılmamış, neyle neyi karşılaştırmamı bekliyorsun allah aşkına ya bezdim resmen")
+        return
+    else:
+        bmap_id = RECENT_CHANNEL_DICT[channel_id]
 
     if len(args) == 0:
         author_id = ctx.message.author.id
         osu_username = get_osu_username(author_id)
     else:
         osu_username = " ".join(args)
+
+    user_data = get_osu_user_data(username=osu_username)
+    bmap_data = get_bmap_data(bmap_id)
+    osu_username = user_data["username"]
+    player_id = user_data["user_id"]
+    song_title = bmap_data["title"]
+    author_name = f"Top osu! standard plays for {osu_username} on {song_title}"
+    author_url = f"https://osu.ppy.sh/users/{player_id}"
+    avatar_url = f"http://s.ppy.sh/a/{player_id}"
+
+    desc_text = ""
+    fixed_fields = {"title_text": title_text,
+                    "desc_text": desc_text,
+                    "author_name": author_name,
+                    "author_icon_url": "https://osu.ppy.sh/images/flags/TR.png",
+                    "cover_url": cover_url,
+                    "bmap_url": bmap_url}
+    await add_pages(ctx, msgc, scores_data, fixed_fields)
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
@@ -138,6 +228,7 @@ async def show_map_score(ctx, *args):
     scores_data = get_user_scores_on_bmap(player_name, bmap_id)
 
 
+
 @client.command(name='country', aliases=['ctr', 'ct'])
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, *args):
@@ -152,8 +243,13 @@ async def show_country(ctx, *args):
         else:
             bmap_id = RECENT_CHANNEL_DICT[channel_id]
     else:
-        if args.startswith("http"):
+        if args[0].startswith("http"):
             bmap_id = args[0].split("/")[-1]
+            try:
+                bmap_id = int(bmap_id)
+            except:
+                await ctx.send(f"Beatmap linkiyle ilgili bi sıkıntı var: {args[0]}\n\
+                    Usage: `*country https://osu.ppy.sh/beatmapsets/1090677#osu/2284572`")
         else:
             bmap_id = args[0]
 
@@ -172,71 +268,15 @@ async def show_country(ctx, *args):
 
     msg = await ctx.send(embed=embed)
 
-    max_index = len(country_data)
-    num = 1
-    max_page = math.ceil(max_index / 5) # Show 5 results per page
+    fixed_fields = {"title_text": title_text,
+                    "desc_text": desc_text,
+                    "author_name": "Turkey Country Ranks",
+                    "author_icon_url": "https://osu.ppy.sh/images/flags/TR.png",
+                    "cover_url": cover_url,
+                    "bmap_url": bmap_url}
+    await add_pages(ctx, msg, country_data,fixed_fields)
 
-    if max_page <= 1:
-        return
 
-    reactmoji = ['⬅', '➡']
-    while True:
-        for react in reactmoji:
-            await msg.add_reaction(react)
-
-        def check_react(reaction, user):
-            if reaction.message.id != msg.id:
-                return False
-            if user != ctx.message.author:
-                return False
-            if str(reaction.emoji) not in reactmoji:
-                return False
-            return True
-
-        try:
-            res, user = await client.wait_for('reaction_add', timeout=30.0, check=check_react)
-        except asyncio.TimeoutError:
-            return await msg.clear_reactions()
-
-        if user != ctx.message.author:
-            pass
-        elif '⬅' in str(res.emoji):
-            print('<< Going backward')
-            num -= 1
-            if num < 1:
-                num = max_page
-
-            begin = (num - 1) * 5
-            end = min(num * 5, max_index)
-
-            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            embed2.set_image(url=cover_url)
-            embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-
-            show_data = country_data[begin:end]
-            add_embed_fields_on_country(embed2, show_data, begin)
-
-            await msg.clear_reactions()
-            await msg.edit(embed=embed2)
-
-        elif '➡' in str(res.emoji):
-            print('Going forward >>')
-            num += 1
-            if num > max_page:
-                num = 1
-
-            begin = (num - 1) * 5
-            end = min(num * 5, max_index)
-
-            embed2 = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
-            embed2.set_image(url=cover_url)
-            embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-
-            show_data = country_data[begin:end]
-            add_embed_fields_on_country(embed2, show_data, begin)
-
-            await msg.clear_reactions()
-            await msg.edit(embed=embed2)
 
 
 client.run(TOKEN)
