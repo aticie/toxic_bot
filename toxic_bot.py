@@ -59,7 +59,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
             show_data = data[begin:end]
 
             if called_by == "country":
-                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.role.color, url=bmap_url)
+                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
                 embed2.set_image(url=cover_url)
                 embed2.set_author(name=author_name, icon_url=author_icon_url)
 
@@ -86,7 +86,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
             end = min(num * 5, max_index)
             show_data = data[begin:end]
             if called_by == "country":
-                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.role.color, url=bmap_url)
+                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
                 embed2.set_image(url=cover_url)
                 embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
                 add_embed_fields_on_country(embed2, show_data, begin)
@@ -303,7 +303,7 @@ async def show_country(ctx, *args):
 
     title_text, desc_text, bmap_url, cover_url = get_embed_text_from_beatmap(bmap_data)
 
-    embed = discord.Embed(title=title_text, description=desc_text, color=0x00ff00, url=bmap_url)
+    embed = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
     embed.set_image(url=cover_url)
     embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
     if len(country_data) > 5:
