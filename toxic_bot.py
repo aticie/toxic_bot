@@ -154,6 +154,7 @@ async def recent(ctx, *args):
         return
 
     user_data = get_osu_user_data(username=osu_username)
+    osu_username = user_data["username"]
     bmap_id = recent_play['beatmap_id']
 
     channel_id = ctx.message.channel.id  # Discord channel id

@@ -502,6 +502,24 @@ def add_embed_description_on_compare(scores, offset, bmp):
     return desc_text
 
 
+def draw_pillow_stars(d, offset, star_rating):
+    star_scale = 0.25
+    verts = np.asarray([10, 40, 40, 40, 50, 10, 60, 40, 90, 40, 65, 60, 75, 90, 50, 70, 25, 90, 35, 60], dtype=np.uint8)
+    verts = verts.reshape((-1, 2))
+    verts = verts * star_scale + np.asarray(offset)
+    for i in range(int(star_rating)):
+        verts_show = verts + np.asarray([18 * i, 0])
+        verts_show = verts_show.reshape((20)).astype(np.uint64).tolist()
+        d.polygon(verts_show, outline=(0, 0, 0, 255), fill=(236, 167, 0, 255))
+
+    verts_show = verts + np.asarray([18 * int(star_rating), 0])
+    verts_show = verts_show.reshape((20)).astype(np.uint64).tolist()
+    trans = int(star_rating % 1 * 255)
+    d.polygon(verts_show, outline=(0, 0, 0, 255), fill=(236, 167, 0, trans))
+
+    return
+
+
 def draw_recent_play(player_name, play_data, background_image, bmap_data, from_cache=True):
     bmapset_id = bmap_data["beatmapset_id"]
     bmap_id = play_data["beatmap_id"]
@@ -531,7 +549,7 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     font_18 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 14 * 2)
     font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22 * 2)
     font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16 * 2)
-    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 13 * 2)
+    font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 14 * 2)
 
     diff_rating = float(bmap_data["difficultyrating"])
     mods = play_data["enabled_mods"]
@@ -539,23 +557,29 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     if diff_rating == 0:
         diff_rating, max_combo = bmap_info_from_oppai(bmp, mods)
 
-    text_fill = (255, 255, 255, 200)
+    text_fill = (255, 255, 255, 225)
     bmap_name = bmap_data["title"]
     bmap_diff = bmap_data["version"]
     bmap_creator = bmap_data["creator"]
-    bmap_misc = f"[{bmap_diff}] by {bmap_creator} | {diff_rating:.2f}*"
 
-    name_w, _ = d.textsize(bmap_name, font_20)
-    if name_w > 325:
-        bmap_name = f"{bmap_name[:25]}~"
+    bmap_misc = f"[{bmap_diff}] {diff_rating:.2f}*"
+
+    name_w, name_h = d.textsize(bmap_name, font_20)
+    if name_w > 650:
+        bmap_name = f"{bmap_name[:30]}~"
     d.text((15, 0), bmap_name, fill=text_fill, font=font_20)
-    d.text((15, 50), bmap_misc, fill=text_fill, font=font_11)
+
+    misc_w, misc_h = d.textsize(bmap_misc, font_11)
+    d.text((15, name_h), bmap_misc, fill=text_fill, font=font_11)
+
+    draw_pillow_stars(d, [15 + misc_w, 7 + name_h], diff_rating)
 
     count300 = play_data["count300"]
     count100 = play_data["count100"]
     count50 = play_data["count50"]
     count_miss = play_data["countmiss"]
     play_combo = play_data["maxcombo"]
+    score = make_readable_score(play_data["score"])
 
     mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
@@ -563,10 +587,17 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
 
     acc = get_acc(count300, count100, count50, count_miss)
 
-    d.text((8, 85), f"{count100}x100 | {count50}x50 | {count_miss}xMiss | Mods:{mods_string}",
+    # Play details [100/50/miss] - Mods
+    d.text((15, name_h + misc_h), f"{count100}x100 | {count50}x50 | {count_miss}xMiss | Mods:{mods_string}",
            fill=text_fill, font=font_11)
-    d.text((8, 115), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
+
+    # Combo - Accuracy - Played by
+    d.text((15, name_h + misc_h * 2), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
            fill=text_fill, font=font_11)
+
+    score_text_w, score_text_h = d.textsize(f"{score}", font_36)
+    # Score
+    d.text((15, badge_height - 25 - score_text_h), f"{score}", fill=text_fill, font=font_36)
 
     rank_color_dict = {"F": (250, 22, 63, 30),
                        "C": (139, 47, 151, 30),
@@ -589,8 +620,10 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     if int(play_combo) + combo_eps < int(max_combo):
         pp_fc_text = f"({pp_fc:.2f}pp for FC)"
         pp_fc_text_w, pp_fc_text_h = d.textsize(pp_fc_text, font_18)
-        d.text((badge_width - 10 - pp_fc_text_w, badge_height - 5 - pp_fc_text_h), pp_fc_text, fill=pp_fc_text_fill, font=font_18)
-        d.text((badge_width - 10 - pp_text_w, badge_height - 5 - pp_text_h - pp_fc_text_h), pp_text, fill=pp_text_fill, font=font_36)
+        d.text((badge_width - 10 - pp_fc_text_w, badge_height - 5 - pp_fc_text_h), pp_fc_text, fill=pp_fc_text_fill,
+               font=font_18)
+        d.text((badge_width - 10 - pp_text_w, badge_height - 5 - pp_text_h - pp_fc_text_h), pp_text, fill=pp_text_fill,
+               font=font_36)
     else:
         d.text((badge_width - 10 - pp_text_w, badge_height - 10 - pp_text_h), pp_text, fill=pp_text_fill, font=font_36)
 
