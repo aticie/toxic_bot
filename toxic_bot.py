@@ -206,7 +206,7 @@ async def recent(ctx, *args):
     pass
 
 
-@client.command(name='rb', aliases=[f'rb{i+1}' for i in range(100)])
+@client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
 async def recent_best(ctx, *args):
     global RECENT_CHANNEL_DICT
     logger.info(
@@ -262,7 +262,8 @@ async def recent_best(ctx, *args):
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
 async def compare(ctx, *args):
     global RECENT_CHANNEL_DICT
-
+    logger.info(
+        f"Compare called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     channel_id = ctx.message.channel.id
     if channel_id not in RECENT_CHANNEL_DICT:
         await ctx.send(
@@ -327,6 +328,9 @@ async def compare(ctx, *args):
 @client.command(name='scores', aliases=['score', 'sc', 's'])
 async def show_map_score(ctx, *args):
     global RECENT_CHANNEL_DICT
+
+    logger.info(
+        f"Scores called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     if len(args) == 0:
         await compare(ctx)
         return
@@ -345,7 +349,7 @@ async def show_map_score(ctx, *args):
         except:
             await ctx.send(f"`Beatmap id'siyle ilgili bi sıkıntı var: {map_link}`")
             return
-        
+
     author_id = ctx.author.id
     try:
         player_name = args[1]
@@ -402,6 +406,9 @@ async def show_map_score(ctx, *args):
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, *args):
     global RECENT_CHANNEL_DICT
+
+    logger.info(
+        f"Country called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     channel_id = ctx.message.channel.id
 
     if len(args) == 0:
