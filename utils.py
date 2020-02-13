@@ -321,6 +321,40 @@ def get_osu_username(discord_id):
         return -1
 
 
+def get_recent_best(user_id, date_index=None, best_index=None):
+    rs_api_url = 'https://osu.ppy.sh/api/get_user_best'
+    params = {'k': OSU_API,  # Api key
+              'u': user_id,
+              'limit': 100}
+
+    req = requests.get(url=rs_api_url, params=params)
+    if len(req.json()) == 0:
+        return -1
+
+    plays = req.json()
+
+    if date_index is not None:
+
+        index_array = []
+        for play in plays:
+            date = datetime.strptime(play["date"], '%Y-%m-%d %H:%M:%S')
+            index_array.append(date)
+
+        indexes = np.argsort(index_array)[::-1]
+        play_index = indexes[date_index-1]
+
+        recent_data = plays[play_index]
+
+    elif best_index is not None:
+
+        recent_data = plays[best_index]
+
+    else:
+        recent_data = plays
+
+    return recent_data
+
+
 def get_recent(user_id, limit=1):
     rs_api_url = 'https://osu.ppy.sh/api/get_user_recent'
     params = {'k': OSU_API,  # Api key
@@ -502,7 +536,30 @@ def add_embed_description_on_compare(scores, offset, bmp):
     return desc_text
 
 
-def draw_pillow_stars(d, offset, star_rating):
+def draw_map_completion(d, bmp, play_data):
+    count300 = int(play_data["count300"])
+    count100 = int(play_data["count100"])
+    count50 = int(play_data["count50"])
+    count_miss = int(play_data["countmiss"])
+    total_obj_on_play = count300 + count100 + count50 + count_miss
+    total_obj_on_map = ezpp_nobjects(bmp)
+    completion = total_obj_on_play / total_obj_on_map
+    font_1 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 14 * 2)
+    font_2 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 11 * 2)
+
+    clr = (255, 255, 255, 225)
+    start = -90
+    end = 360 * completion - 90
+    d.arc(((630, 10), (700, 80)), start, end, fill=clr, width=5)
+    if completion >= 0.1:
+        d.text((642, 29), f"{int(completion * 100)}%", fill=clr, font=font_2)
+    else:
+        d.text((645, 25), f"{int(completion * 100)}%", fill=clr, font=font_1)
+
+    return
+
+
+def draw_map_stars(d, offset, star_rating):
     star_scale = 0.25
     verts = np.asarray([10, 40, 40, 40, 50, 10, 60, 40, 90, 40, 65, 60, 75, 90, 50, 70, 25, 90, 35, 60], dtype=np.uint8)
     verts = verts.reshape((-1, 2))
@@ -520,7 +577,7 @@ def draw_pillow_stars(d, offset, star_rating):
     return
 
 
-def draw_recent_play(player_name, play_data, background_image, bmap_data, from_cache=True):
+def draw_user_play(player_name, play_data, background_image, bmap_data, from_cache=True):
     bmapset_id = bmap_data["beatmapset_id"]
     bmap_id = play_data["beatmap_id"]
     bmp = beatmap_from_cache_or_web(bmap_id)
@@ -572,7 +629,7 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     misc_w, misc_h = d.textsize(bmap_misc, font_11)
     d.text((15, name_h), bmap_misc, fill=text_fill, font=font_11)
 
-    draw_pillow_stars(d, [15 + misc_w, 7 + name_h], diff_rating)
+    draw_map_stars(d, [15 + misc_w, 7 + name_h], diff_rating)
 
     count300 = play_data["count300"]
     count100 = play_data["count100"]
@@ -592,7 +649,7 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
            fill=text_fill, font=font_11)
 
     # Combo - Accuracy - Played by
-    d.text((15, name_h + misc_h * 2), f"{play_combo}x/{max_combo} | %{acc:.2f} | played by {player_name}",
+    d.text((15, name_h + misc_h * 2), f"{play_combo}x/{max_combo} | {acc:.2f}% | played by {player_name}",
            fill=text_fill, font=font_11)
 
     score_text_w, score_text_h = d.textsize(f"{score}", font_36)
@@ -630,6 +687,8 @@ def draw_recent_play(player_name, play_data, background_image, bmap_data, from_c
     circle = Image.new('RGBA', cover.size, (255, 255, 255, 0))
     dc = ImageDraw.Draw(circle)
 
+    if rank == "F":
+        draw_map_completion(dc, bmp, play_data)
     dc.ellipse([((badge_width - 150), 10), ((badge_width - 10), 150)], fill=rank_color)
     if rank == "SH" or rank == "XH":
         dc.text(((badge_width - 110 - 30), 16), rank, fill=rank_text_color, font=font_48)
