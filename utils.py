@@ -610,11 +610,10 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16 * 2)
     font_11 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 14 * 2)
 
-    diff_rating = float(bmap_data["difficultyrating"])
     mods = play_data["enabled_mods"]
     max_combo = bmap_data["max_combo"]
-    if diff_rating == 0:
-        diff_rating, max_combo = bmap_info_from_oppai(bmp, mods)
+
+    diff_rating, max_combo = bmap_info_from_oppai(bmp, mods)
 
     text_fill = (255, 255, 255, 225)
     score_fill = (255, 255, 255, 195)
