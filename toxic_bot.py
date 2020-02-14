@@ -317,6 +317,8 @@ async def compare(ctx, *args):
         recent_image, diff_rating, max_combo = draw_user_play(osu_username, scores_data[0], cover_img_bytes, bmap_data,
                                                               cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
+        bmap_data["difficultyrating"] = diff_rating
+        bmap_data["max_combo"] = max_combo
         _, mods_text = get_mods(mods)
         title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
         title_text += title_text2 + f" {mods_text}"
