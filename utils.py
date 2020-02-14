@@ -580,7 +580,7 @@ def draw_map_stars(d, offset, star_rating):
 
 def draw_user_play(player_name, play_data, background_image, bmap_data, from_cache=True):
     bmapset_id = bmap_data["beatmapset_id"]
-    bmap_id = play_data["beatmap_id"]
+    bmap_id = bmap_data["beatmap_id"]
     bmp = beatmap_from_cache_or_web(bmap_id)
 
     cover = Image.open(io.BytesIO(background_image))
