@@ -8,6 +8,7 @@ import json
 import requests
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 import io
+import imageio
 
 USER_LINK_FILE = os.path.join("Users", "link_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
@@ -341,7 +342,7 @@ def get_recent_best(user_id, date_index=None, best_index=None):
             index_array.append(date)
 
         indexes = np.argsort(index_array)[::-1]
-        play_index = indexes[date_index-1]
+        play_index = indexes[date_index - 1]
 
         recent_data = plays[play_index]
 
@@ -603,6 +604,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     font_50 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 50 * 2)
     font_48 = ImageFont.truetype(os.path.join("Fonts", "Exo2-MediumItalic.otf"), 48 * 2)
     font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36 * 2)
+    font_26 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 23 * 2)
     font_18 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 14 * 2)
     font_20 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 22 * 2)
     font_16 = ImageFont.truetype(os.path.join("Fonts", "Exo2-Black.otf"), 16 * 2)
@@ -615,6 +617,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
         diff_rating, max_combo = bmap_info_from_oppai(bmp, mods)
 
     text_fill = (255, 255, 255, 225)
+    score_fill = (255, 255, 255, 195)
     bmap_name = bmap_data["title"]
     bmap_diff = bmap_data["version"]
     bmap_creator = bmap_data["creator"]
@@ -654,7 +657,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
 
     score_text_w, score_text_h = d.textsize(f"{score}", font_36)
     # Score
-    d.text((15, badge_height - 25 - score_text_h), f"{score}", fill=text_fill, font=font_36)
+    d.text((15, badge_height - 25 - score_text_h), f"{score}", fill=score_fill, font=font_26)
 
     rank_color_dict = {"F": (250, 22, 63, 30),
                        "C": (139, 47, 151, 30),
@@ -668,8 +671,20 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     rank = play_data["rank"]
     rank_color = rank_color_dict[rank]
     rank_text_color = (rank_color[0], rank_color[1], rank_color[2], 180)
-    pp_text_fill = (163, 163, 163, 200) if rank == "F" else (255, 255, 255, 200)
-    pp_fc_text_fill = (255, 255, 255, 200)
+    if float(pp_raw) < 400:
+        pp_text_fill = (255, 255, 255, 255)
+    elif float(pp_raw) < 500:
+        pp_text_fill = (80, 216, 144, 255)
+    elif float(pp_raw) < 600:
+        pp_text_fill = (236, 167, 0, 255)
+    elif float(pp_raw) < 700:
+        pp_text_fill = (253, 94, 83, 255)
+    else:
+        pp_text_fill = (200, 25, 18, 255)
+
+    pp_text_fill = (163, 163, 163, 200) if rank == "F" else pp_text_fill
+
+    pp_fc_text_fill = (255, 255, 255, 185)
     pp_text = f"{pp_raw:.2f}PP"
     pp_text_w, pp_text_h = d.textsize(pp_text, font_36)
 

@@ -26,12 +26,15 @@ client = commands.Bot(command_prefix="*", case_insensitive=True)
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
     num = 1
-    max_page = math.ceil(max_index / 5)  # Show 5 results per page
-
-    if max_page <= 1:
-        return
 
     called_by = fixed_fields["callsign"]
+
+    if called_by == "country":
+        max_page = math.ceil(max_index / 5)  # Show 5 results per page
+    else:
+        max_page = math.ceil(max_index / 3)  # Show 5 results per page
+    if max_page <= 1:
+        return
     title_text = fixed_fields["title_text"]
     desc_text = fixed_fields["desc_text"]
     author_name = fixed_fields["author_name"]
@@ -144,7 +147,7 @@ async def link(ctx, *args):
         await ctx.send(f"osu!'daki adını {username} yaptım")
         logger.info(f"Linked discord user: {ctx.author.display_name} with {username}")
     else:
-        await ctx.send(f"Zaten {username} olarak linklisin am k sala")
+        await ctx.send(f"Zaten {username} olarak linklisin 😔")
     pass
 
 
@@ -162,13 +165,13 @@ async def recent(ctx, *args):
         osu_username = " ".join(args)
 
     if osu_username == -1:
-        await ctx.send(f"`Önce profilini linkle` <:omar:475326551936729115>\n`Örnek: *link heyronii`")
+        await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
     recent_play = get_recent(osu_username)
 
     if recent_play == -1:
-        await ctx.send(f"`{osu_username} oyunu bırakmış quit w X:D`")
+        await ctx.send(f"`{osu_username}` oyunu bırakmış 😔")
         return
 
     user_data = get_osu_user_data(username=osu_username)
@@ -220,10 +223,15 @@ async def recent_best(ctx, *args):
         osu_username = " ".join(args)
 
     if osu_username == -1:
-        await ctx.send(f"`Önce profilini linkle` <:omar:475326551936729115>\n`Örnek: *link heyronii`")
+        await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
-    which_best = int(ctx.invoked_with[2:])
+    which_best = ctx.invoked_with[2:]
+    if which_best == "":
+        which_best = 1
+    else:
+        which_best = int(which_best)
+
     recent_play = get_recent_best(osu_username, date_index=which_best)
 
     user_data = get_osu_user_data(username=osu_username)
@@ -267,7 +275,7 @@ async def compare(ctx, *args):
     channel_id = ctx.message.channel.id
     if channel_id not in RECENT_CHANNEL_DICT:
         await ctx.send(
-            "Son zamanlarda map atılmamış, neyle neyi karşılaştırmamı bekliyorsun allah aşkına ya bezdim resmen")
+            "Hangi map ile karşılaştırmam gerektiğini bilmiyorum 😔")
         return
     else:
         bmap_id = RECENT_CHANNEL_DICT[channel_id]
@@ -280,7 +288,7 @@ async def compare(ctx, *args):
 
     scores_data = get_user_scores_on_bmap(osu_username, bmap_id)
     if len(scores_data) == 0:
-        await ctx.send(f"`{osu_username}` mapi oynamamış bile aK")
+        await ctx.send(f"`{osu_username}` mapi oynamamış 😔")
         return
     user_data = get_osu_user_data(username=osu_username)
     bmap_data = get_bmap_data(bmap_id)
@@ -297,6 +305,32 @@ async def compare(ctx, *args):
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     title_text = f"{bmap_artist} - {bmap_title} [{bmap_version}]"
     bmp = beatmap_from_cache_or_web(bmap_id)
+
+    if len(scores_data) == 0:
+        await ctx.send(f"`{osu_username}` oynamamış 😔")
+        return
+
+    if len(scores_data) == 1:
+        cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
+        recent_image, diff_rating, max_combo = draw_user_play(osu_username, scores_data[0], cover_img_bytes, bmap_data,
+                                                              cover_from_cache)
+        mods = scores_data[0]["enabled_mods"]
+        _, mods_text = get_mods(mods)
+        title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
+        title_text += title_text2 + f" {mods_text}"
+        osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
+            user_data)
+
+        recent_image.save("recent.png")
+
+        footer_text = parse_recent_play(recent_play)
+
+        embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
+        embed.set_image(url="attachment://recent.png")
+        embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
+                         icon_url=f"http://s.ppy.sh/a/{player_id}")
+        embed.set_footer(text=footer_text)
+        await ctx.send(embed=embed, file=discord.File('recent.png'))
 
     if len(scores_data) > 3:
         desc_text = add_embed_description_on_compare(scores_data[:3], 0, bmp)
@@ -414,7 +448,7 @@ async def show_country(ctx, *args):
     if len(args) == 0:
         if channel_id not in RECENT_CHANNEL_DICT:
             await ctx.send(
-                "Son zamanlarda map atılmamış ve sen de map id'si yazmadın LAN ALLAH MIYIM BEN NASIL BİLEBİLİRİM HANGİ MAPİN COUNTRYSİNİ İSTEDİĞİNİ?")
+                "Hangi mapi istediğini bilmiyorum 😔")
             return
         else:
             bmap_id = RECENT_CHANNEL_DICT[channel_id]
