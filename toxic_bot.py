@@ -285,6 +285,9 @@ async def compare(ctx, *args):
     else:
         osu_username = " ".join(args)
 
+    if osu_username == -1:
+        await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
+        return
     scores_data = get_user_scores_on_bmap(osu_username, bmap_id)
     if len(scores_data) == 0:
         await ctx.send(f"`{osu_username}` mapi oynamamış 😔")
