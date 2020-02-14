@@ -10,10 +10,9 @@ TOKEN = os.environ["DISCORD_TOKEN"]
 RECENT_CHANNEL_DICT = {}
 
 logger = logging.getLogger('Bot-Main')
+logger.setLevel(logging.DEBUG)
 fh = logging.FileHandler('Bot.log')
-fh.setLevel(logging.INFO)
 ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
 formatter = logging.Formatter('%(asctime)s - %(name)s [%(levelname)s]: %(message)s')
 fh.setFormatter(formatter)
 ch.setFormatter(formatter)
@@ -156,7 +155,7 @@ async def recent(ctx, *args):
     global RECENT_CHANNEL_DICT
 
     logger.info(
-        f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)}")
+        f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)} for {ctx.author.display_name}")
 
     if len(args) == 0:
         author_id = ctx.message.author.id
@@ -214,7 +213,7 @@ async def recent_best(ctx, *args):
     global RECENT_CHANNEL_DICT
     logger.info(
         f"Recent Best called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
-        f"{ctx.invoked_with}{' '.join(args)}")
+        f" {ctx.invoked_with}{' '.join(args)} for {ctx.author.display_name}")
 
     if len(args) == 0:
         author_id = ctx.message.author.id
@@ -323,7 +322,7 @@ async def compare(ctx, *args):
 
         recent_image.save("recent.png")
 
-        footer_text = parse_recent_play(recent_play)
+        footer_text = parse_recent_play(scores_data[0])
 
         embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
         embed.set_image(url="attachment://recent.png")
@@ -331,6 +330,7 @@ async def compare(ctx, *args):
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
         await ctx.send(embed=embed, file=discord.File('recent.png'))
+        return
 
     if len(scores_data) > 3:
         desc_text = add_embed_description_on_compare(scores_data[:3], 0, bmp)
