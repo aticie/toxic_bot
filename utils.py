@@ -807,10 +807,11 @@ def make_recent_gif(final_cover, pp_text, fc_pp_text_bool):
         im = final_cover.copy()
         draw = ImageDraw.Draw(im)
         pp_text_fill = colors[i]
+        w, h = draw.textsize(pp_text, font_36)
         if fc_pp_text_bool:
-            draw.text((554, 135), pp_text, fill=pp_text_fill, font=font_36)
+            draw.text((890-w, 245 - h - 35), pp_text, fill=pp_text_fill, font=font_36)
         else:
-            draw.text((554, 165), pp_text, fill=pp_text_fill, font=font_36)
+            draw.text((890-w, 240 - h), pp_text, fill=pp_text_fill, font=font_36)
 
         images.append(im)
 
