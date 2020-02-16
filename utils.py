@@ -539,8 +539,11 @@ def fix_rank(rank):
 
 
 def add_embed_fields_on_country(embed, country_data, offset):
+    field_name = "_ _"
+    field_value = ""
     for player_placement, score in enumerate(country_data):
         player_name = score["user"]["username"]
+        player_id = score["user_id"]
         player_score = score["score"]
         player_score = make_readable_score(player_score)
         player_combo = score["max_combo"]
@@ -551,12 +554,14 @@ def add_embed_fields_on_country(embed, country_data, offset):
         player_rank = fix_rank(score["rank"])
         player_play_date = score["created_at"][:10].replace("-", "/")
         player_miss = score["statistics"]["count_miss"]
-        player_text = f"**{player_placement + offset + 1}. {player_name}** - {player_play_date}"
+        player_url = f"https://osu.ppy.sh/users/{player_id}"
+        field_value += f"[**{player_placement + offset + 1}. {player_name}**]({player_url}) - {player_play_date}\n"
         if player_pp is None:
-            value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)"
+            field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)\n\n"
         else:
-            value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)"
-        embed.add_field(name=player_text, value=value_text, inline=False)
+            field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)\n\n"
+
+    embed.add_field(name=field_name, value=field_value, inline=False)
 
     return embed
 

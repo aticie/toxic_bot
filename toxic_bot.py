@@ -328,7 +328,7 @@ async def show_top_scores(ctx, *args):
 
         embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
         embed.set_image(url="attachment://top_best.png")
-        embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
+        embed.set_author(name=f"Top #{which_best} play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
         await ctx.send(embed=embed, file=discord.File('top_best.png'))
