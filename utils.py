@@ -324,8 +324,8 @@ def put_recent_on_file(recent_bmap_id, discord_channel_id):
 
     return 1
 
-def get_value_from_dbase(discord_id, callsign):
 
+def get_value_from_dbase(discord_id, callsign):
     if callsign == "username":
         file = USER_LINK_FILE
     elif callsign == "recent":
@@ -344,7 +344,6 @@ def get_value_from_dbase(discord_id, callsign):
         return users_dict[discord_id]
     else:
         return -1
-
 
 
 def get_recent_best(user_id, date_index=None, best_index=None):
@@ -379,6 +378,15 @@ def get_recent_best(user_id, date_index=None, best_index=None):
         recent_data = plays
 
     return recent_data
+
+
+def get_user_best_v2(user_id):
+    rs_api_url = "https://osu.ppy.sh/users/{user_id}/scores/best?"
+    params = {'mode': 'osu',
+              'limit': '51'}
+    req = requests.get(url=rs_api_url, params=params)
+    plays = req.json()
+    return plays
 
 
 def get_recent(user_id, limit=1):
@@ -749,7 +757,8 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     pp_text_w, pp_text_h = d.textsize(pp_text, font_36)
 
     combo_eps = 15
-    if int(count_miss) > 0 or (int(play_combo) + combo_eps < int(max_combo)):
+    show_pp_if_fc_text = int(count_miss) > 0 or (int(play_combo) + combo_eps < int(max_combo))
+    if show_pp_if_fc_text:
         pp_fc_text = f"({pp_fc:.2f}pp for FC)"
         pp_fc_text_w, pp_fc_text_h = d.textsize(pp_fc_text, font_18)
         d.text((badge_width - 10 - pp_fc_text_w, badge_height - 5 - pp_fc_text_h), pp_fc_text, fill=pp_fc_text_fill,
@@ -774,7 +783,38 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     halfway_img = Image.alpha_composite(cover, txt)
     final_cover = Image.alpha_composite(halfway_img, circle)
 
-    return final_cover, diff_rating, max_combo
+    if float(pp_raw) > 900:
+        images = make_recent_gif(final_cover, pp_text, show_pp_if_fc_text)
+
+        final_cover.save("recent.gif", save_all=True, append_images=images, optimize=False,
+               duration=100, loop=0)
+        return final_cover, diff_rating, max_combo, True
+    else:
+        return final_cover, diff_rating, max_combo, False
+
+
+def make_recent_gif(final_cover, pp_text, fc_pp_text_bool):
+    images = []
+    colors = [(168, 0, 255, 255),  # Purple
+              (0, 121, 255, 255),  # Azure
+              (0, 241, 29, 255),  # Electric greeen
+              (255, 239, 0, 255),  # Canary Yellow
+              (255, 127, 0, 255),  # Orange
+              (255, 9, 0, 255)  # Candy Apple Red
+              ]
+    font_36 = ImageFont.truetype(os.path.join("Fonts", "Exo2-BlackItalic.otf"), 36 * 2)
+    for i in range(6):
+        im = final_cover.copy()
+        draw = ImageDraw.Draw(im)
+        pp_text_fill = colors[i]
+        if fc_pp_text_bool:
+            draw.text((554, 135), pp_text, fill=pp_text_fill, font=font_36)
+        else:
+            draw.text((554, 165), pp_text, fill=pp_text_fill, font=font_36)
+
+        images.append(im)
+
+    return images
 
 
 def get_embed_text_from_beatmap(bmap_data):

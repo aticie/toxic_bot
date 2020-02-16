@@ -185,7 +185,7 @@ async def recent(ctx, *args):
     bmap_data = get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
+    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
                                                           cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
@@ -194,16 +194,20 @@ async def recent(ctx, *args):
     osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
         user_data)
 
-    recent_image.save("recent.png")
-
     footer_text = parse_recent_play(recent_play)
 
     embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
-    embed.set_image(url="attachment://recent.png")
+
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                      icon_url=f"http://s.ppy.sh/a/{player_id}")
     embed.set_footer(text=footer_text)
-    await ctx.send(embed=embed, file=discord.File('recent.png'))
+    if not is_gif:
+        recent_image.save("recent.png")
+        embed.set_image(url="attachment://recent.png")
+        await ctx.send(embed=embed, file=discord.File('recent.png'))
+    else:
+        embed.set_image(url="attachment://recent.gif")
+        await ctx.send(embed=embed, file=discord.File('recent.gif'))
 
     pass
 
@@ -244,7 +248,7 @@ async def recent_best(ctx, *args):
     bmap_data = get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
+    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
                                                           cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
@@ -253,16 +257,21 @@ async def recent_best(ctx, *args):
     osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
         user_data)
 
-    recent_image.save("recent.png")
 
     footer_text = parse_recent_play(recent_play)
 
     embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
-    embed.set_image(url="attachment://recent.png")
+
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                      icon_url=f"http://s.ppy.sh/a/{player_id}")
     embed.set_footer(text=footer_text)
-    await ctx.send(embed=embed, file=discord.File('recent.png'))
+    if not is_gif:
+        recent_image.save("recent.png")
+        embed.set_image(url="attachment://recent.png")
+        await ctx.send(embed=embed, file=discord.File('recent.png'))
+    else:
+        embed.set_image(url="attachment://recent.gif")
+        await ctx.send(embed=embed, file=discord.File('recent.gif'))
 
 
 @client.command(name='osutop', aliases=['top'])
@@ -313,7 +322,7 @@ async def show_top_scores(ctx, *args):
         bmap_setid = bmap_data["beatmapset_id"]
         put_recent_on_file(bmap_id, channel_id)
         cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo = draw_user_play(osu_username, score_data, cover_img_bytes, bmap_data,
+        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, score_data, cover_img_bytes, bmap_data,
                                                               cover_from_cache)
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
@@ -322,16 +331,23 @@ async def show_top_scores(ctx, *args):
         osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
             user_data)
 
-        recent_image.save("top_best.png")
-
         footer_text = parse_recent_play(score_data)
 
         embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
-        embed.set_image(url="attachment://top_best.png")
         embed.set_author(name=f"Top #{which_best} play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
-        await ctx.send(embed=embed, file=discord.File('top_best.png'))
+        if not is_gif:
+            recent_image.save("top_best.png")
+            embed.set_image(url="attachment://top_best.png")
+            await ctx.send(embed=embed, file=discord.File('top_best.png'))
+        else:
+            embed.set_image(url="attachment://recent.gif")
+            await ctx.send(embed=embed, file=discord.File('recent.gif'))
+        return
+    else:
+        user_id = user_data["user_id"]
+        score_data = get_user_best_v2(user_id=user_id)
 
 
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
@@ -381,7 +397,7 @@ async def compare(ctx, *args):
 
     if len(scores_data) == 1:
         cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo = draw_user_play(osu_username, scores_data[0], cover_img_bytes, bmap_data,
+        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, scores_data[0], cover_img_bytes, bmap_data,
                                                               cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
         bmap_data["difficultyrating"] = diff_rating
@@ -392,16 +408,19 @@ async def compare(ctx, *args):
         osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
             user_data)
 
-        recent_image.save("recent.png")
-
         footer_text = parse_recent_play(scores_data[0])
 
         embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
-        embed.set_image(url="attachment://recent.png")
         embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
-        await ctx.send(embed=embed, file=discord.File('recent.png'))
+        if not is_gif:
+            recent_image.save("recent.png")
+            embed.set_image(url="attachment://recent.png")
+            await ctx.send(embed=embed, file=discord.File('recent.png'))
+        else:
+            embed.set_image(url="attachment://recent.gif")
+            await ctx.send(embed=embed, file=discord.File('recent.gif'))
         return
 
     if len(scores_data) > 3:
