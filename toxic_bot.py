@@ -294,6 +294,9 @@ async def show_top_scores(ctx, *args):
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
+    if not single_mode:
+        await ctx.send(f"Bu özellik henüz yok 😔")
+        return
     user_data = get_osu_user_data(osu_username)
     if single_mode:
         which_best = int(which_best)
