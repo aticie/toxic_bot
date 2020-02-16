@@ -176,7 +176,7 @@ async def recent(ctx, *args):
     osu_username = user_data["username"]
     bmap_id = recent_play['beatmap_id']
 
-    channel_id = ctx.message.channel.id  # Discord channel id
+    channel_id = str(ctx.message.channel.id)  # Discord channel id
 
     put_recent_on_file(bmap_id, channel_id)
 
@@ -236,7 +236,7 @@ async def recent_best(ctx, *args):
     osu_username = user_data["username"]
     bmap_id = recent_play['beatmap_id']
 
-    channel_id = ctx.message.channel.id  # Discord channel id
+    channel_id = str(ctx.message.channel.id)  # Discord channel id
     put_recent_on_file(bmap_id, channel_id)
 
     mods = recent_play['enabled_mods']
@@ -269,15 +269,13 @@ async def recent_best(ctx, *args):
 async def compare(ctx, *args):
     logger.info(
         f"Compare called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
-    channel_id = ctx.message.channel.id
-    recent_channel_dict = get_value_from_dbase(channel_id, "recent")
+    channel_id = str(ctx.message.channel.id)
+    bmap_id = get_value_from_dbase(channel_id, "recent")
 
-    if channel_id not in recent_channel_dict:
+    if bmap_id == -1:
         await ctx.send(
             "Hangi map ile karşılaştırmam gerektiğini bilmiyorum 😔")
         return
-    else:
-        bmap_id = recent_channel_dict[channel_id]
 
     if len(args) == 0:
         author_id = ctx.message.author.id
@@ -394,7 +392,11 @@ async def show_map_score(ctx, *args):
     except:
         player_name = get_value_from_dbase(author_id, "username")
 
-    channel_id = ctx.message.channel.id
+    if player_name == -1:
+        await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
+        return
+
+    channel_id = str(ctx.message.channel.id)
     put_recent_on_file(bmap_id, channel_id)
 
     scores_data = get_user_scores_on_bmap(player_name, bmap_id)
@@ -446,16 +448,14 @@ async def show_map_score(ctx, *args):
 async def show_country(ctx, *args):
     logger.info(
         f"Country called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
-    channel_id = ctx.message.channel.id
+    channel_id = str(ctx.message.channel.id)
 
-    recent_channel_dict = get_value_from_dbase(channel_id, "recent")
+    bmap_id = get_value_from_dbase(channel_id, "recent")
     if len(args) == 0:
-        if channel_id not in recent_channel_dict:
+        if bmap_id == -1:
             await ctx.send(
                 "Hangi mapi istediğini bilmiyorum 😔")
             return
-        else:
-            bmap_id = recent_channel_dict[channel_id]
     else:
         if args[0].startswith("http"):
             bmap_id = args[0].split("/")[-1]
