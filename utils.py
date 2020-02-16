@@ -525,7 +525,10 @@ def add_embed_fields_on_country(embed, country_data, offset):
         player_play_date = score["created_at"][:10].replace("-", "/")
         player_miss = score["statistics"]["count_miss"]
         player_text = f"**{player_placement + offset + 1}. {player_name}** - {player_play_date}"
-        value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)"
+        if player_pp is None:
+            value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)"
+        else:
+            value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)"
         embed.add_field(name=player_text, value=value_text, inline=False)
 
     return embed
