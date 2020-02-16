@@ -152,14 +152,13 @@ async def link(ctx, *args):
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rcent', 'rcnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
-    global RECENT_CHANNEL_DICT
 
     logger.info(
         f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)} for {ctx.author.display_name}")
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_osu_username(author_id)
+        osu_username = get_value_from_dbase(author_id, "username")
     else:
         osu_username = " ".join(args)
 
@@ -178,7 +177,8 @@ async def recent(ctx, *args):
     bmap_id = recent_play['beatmap_id']
 
     channel_id = ctx.message.channel.id  # Discord channel id
-    RECENT_CHANNEL_DICT[channel_id] = bmap_id  # Add recent play bmap id to recent-channel dictionary
+
+    put_recent_on_file(bmap_id, channel_id)
 
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
@@ -210,14 +210,13 @@ async def recent(ctx, *args):
 
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
 async def recent_best(ctx, *args):
-    global RECENT_CHANNEL_DICT
     logger.info(
         f"Recent Best called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
         f" {ctx.invoked_with}{' '.join(args)} for {ctx.author.display_name}")
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_osu_username(author_id)
+        osu_username = get_value_from_dbase(author_id, "username")
     else:
         osu_username = " ".join(args)
 
@@ -238,7 +237,7 @@ async def recent_best(ctx, *args):
     bmap_id = recent_play['beatmap_id']
 
     channel_id = ctx.message.channel.id  # Discord channel id
-    RECENT_CHANNEL_DICT[channel_id] = bmap_id  # Add recent play bmap id to recent-channel dictionary
+    put_recent_on_file(bmap_id, channel_id)
 
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
@@ -268,20 +267,21 @@ async def recent_best(ctx, *args):
 
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
 async def compare(ctx, *args):
-    global RECENT_CHANNEL_DICT
     logger.info(
         f"Compare called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     channel_id = ctx.message.channel.id
-    if channel_id not in RECENT_CHANNEL_DICT:
+    recent_channel_dict = get_value_from_dbase(channel_id, "recent")
+
+    if channel_id not in recent_channel_dict:
         await ctx.send(
             "Hangi map ile karşılaştırmam gerektiğini bilmiyorum 😔")
         return
     else:
-        bmap_id = RECENT_CHANNEL_DICT[channel_id]
+        bmap_id = recent_channel_dict[channel_id]
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_osu_username(author_id)
+        osu_username = get_value_from_dbase(author_id, "username")
     else:
         osu_username = " ".join(args)
 
@@ -366,10 +366,9 @@ async def compare(ctx, *args):
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
 async def show_map_score(ctx, *args):
-    global RECENT_CHANNEL_DICT
-
     logger.info(
         f"Scores called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
+
     if len(args) == 0:
         await compare(ctx)
         return
@@ -393,10 +392,11 @@ async def show_map_score(ctx, *args):
     try:
         player_name = args[1]
     except:
-        player_name = get_osu_username(author_id)
+        player_name = get_value_from_dbase(author_id, "username")
 
     channel_id = ctx.message.channel.id
-    RECENT_CHANNEL_DICT[channel_id] = bmap_id
+    put_recent_on_file(bmap_id, channel_id)
+
     scores_data = get_user_scores_on_bmap(player_name, bmap_id)
     user_data = get_osu_user_data(username=player_name)
     bmap_data = get_bmap_data(bmap_id)
@@ -444,19 +444,18 @@ async def show_map_score(ctx, *args):
 @client.command(name='country', aliases=['ctr', 'ct'])
 @commands.cooldown(1, 10, commands.BucketType.user)
 async def show_country(ctx, *args):
-    global RECENT_CHANNEL_DICT
-
     logger.info(
         f"Country called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     channel_id = ctx.message.channel.id
 
+    recent_channel_dict = get_value_from_dbase(channel_id, "recent")
     if len(args) == 0:
-        if channel_id not in RECENT_CHANNEL_DICT:
+        if channel_id not in recent_channel_dict:
             await ctx.send(
                 "Hangi mapi istediğini bilmiyorum 😔")
             return
         else:
-            bmap_id = RECENT_CHANNEL_DICT[channel_id]
+            bmap_id = recent_channel_dict[channel_id]
     else:
         if args[0].startswith("http"):
             bmap_id = args[0].split("/")[-1]
@@ -469,7 +468,7 @@ async def show_country(ctx, *args):
         else:
             bmap_id = args[0]
 
-    RECENT_CHANNEL_DICT[channel_id] = bmap_id
+    put_recent_on_file(bmap_id, channel_id)
     country_data = get_country_rankings_v2(bmap_id)
     bmap_data = get_bmap_data(bmap_id)
     if len(country_data) == 0:

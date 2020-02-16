@@ -10,6 +10,7 @@ from PIL import Image, ImageFilter, ImageFont, ImageDraw
 import io
 
 USER_LINK_FILE = os.path.join("Users", "link_list.json")
+RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
 
 with open("mods.txt", "r") as mods_file:
@@ -303,21 +304,47 @@ def link_user_on_file(user_osu_nickname, user_discord_id):
     return 1
 
 
-def get_osu_username(discord_id):
+def put_recent_on_file(recent_bmap_id, discord_channel_id):
+    recent_bmap_id = str(recent_bmap_id)
+    discord_channel_id = str(discord_channel_id)
+
+    recent_dict = {}
+    if not os.path.exists(RECENT_DICT_FILE):
+        os.makedirs("Users", exist_ok=True)
+        with open(RECENT_DICT_FILE, "w") as f:
+            json.dump(recent_dict, f)
+
+    with open(RECENT_DICT_FILE, "r") as recent_list:
+        recent_dict = json.load(recent_list)
+
+    recent_dict[discord_channel_id] = recent_bmap_id
+
+    with open(RECENT_DICT_FILE, "w") as link_list:
+        json.dump(recent_dict, link_list)
+
+    return 1
+
+def get_value_from_dbase(discord_id, callsign):
+
+    if callsign == "username":
+        file = USER_LINK_FILE
+    elif callsign == "recent":
+        file = RECENT_DICT_FILE
     discord_id = str(discord_id)
 
     users_dict = {}
-    if not os.path.exists(USER_LINK_FILE):
+    if not os.path.exists(file):
         os.makedirs("Users", exist_ok=True)
-        with open(USER_LINK_FILE, "w") as f:
+        with open(file, "w") as f:
             json.dump(users_dict, f)
-    with open(USER_LINK_FILE, "r") as f:
+    with open(file, "r") as f:
         users_dict = json.load(f)
 
     if discord_id in users_dict:
         return users_dict[discord_id]
     else:
         return -1
+
 
 
 def get_recent_best(user_id, date_index=None, best_index=None):
