@@ -9,7 +9,6 @@ import requests
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 import io
 
-
 USER_LINK_FILE = os.path.join("Users", "link_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
 
@@ -504,6 +503,14 @@ def parse_country_data(text):
     return country_data
 
 
+def fix_rank(rank):
+    if rank == "XH" or rank == "X":
+        rank = "SS"
+    elif rank == "SH":
+        rank = "S"
+    return rank
+
+
 def add_embed_fields_on_country(embed, country_data, offset):
     for player_placement, score in enumerate(country_data):
         player_name = score["user"]["username"]
@@ -512,12 +519,13 @@ def add_embed_fields_on_country(embed, country_data, offset):
         player_combo = score["max_combo"]
         mods_list = score["mods"]
         player_mods = "".join(mods_list) if len(mods_list) > 0 else "NoMod"
-        player_acc = float(score["accuracy"])*100
+        player_acc = float(score["accuracy"]) * 100
         player_pp = score["pp"]
-        player_rank = score["rank"]
+        player_rank = fix_rank(score["rank"])
         player_play_date = score["created_at"][:10].replace("-", "/")
+        player_miss = score["statistics"]["count_miss"]
         player_text = f"**{player_placement + offset + 1}. {player_name}** - {player_play_date}"
-        value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp**"
+        value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)"
         embed.add_field(name=player_text, value=value_text, inline=False)
 
     return embed
@@ -535,7 +543,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         count100 = score["count100"]
         count50 = score["count50"]
         countmiss = score["countmiss"]
-        player_rank = score["rank"]
+        player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
         pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, countmiss, mods, player_combo)
@@ -720,10 +728,11 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     if rank == "F":
         draw_map_completion(dc, bmp, play_data)
     dc.ellipse([((badge_width - 150), 10), ((badge_width - 10), 150)], fill=rank_color)
-    if rank == "SH" or rank == "XH":
-        dc.text(((badge_width - 110 - 30), 16), rank, fill=rank_text_color, font=font_48)
+    rank_text = fix_rank(rank)
+    if rank == "X" or rank == "XH":
+        dc.text(((badge_width - 110 - 30), 16), rank_text, fill=rank_text_color, font=font_48)
     else:
-        dc.text(((badge_width - 110), 16), rank, fill=rank_text_color, font=font_50)
+        dc.text(((badge_width - 110), 16), rank_text, fill=rank_text_color, font=font_50)
 
     halfway_img = Image.alpha_composite(cover, txt)
     final_cover = Image.alpha_composite(halfway_img, circle)
