@@ -742,7 +742,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     pp_text_w, pp_text_h = d.textsize(pp_text, font_36)
 
     combo_eps = 15
-    if count_miss > 0 or (int(play_combo) + combo_eps < int(max_combo)):
+    if int(count_miss) > 0 or (int(play_combo) + combo_eps < int(max_combo)):
         pp_fc_text = f"({pp_fc:.2f}pp for FC)"
         pp_fc_text_w, pp_fc_text_h = d.textsize(pp_fc_text, font_18)
         d.text((badge_width - 10 - pp_fc_text_w, badge_height - 5 - pp_fc_text_h), pp_fc_text, fill=pp_fc_text_fill,
