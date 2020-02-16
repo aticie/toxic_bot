@@ -265,6 +265,70 @@ async def recent_best(ctx, *args):
     await ctx.send(embed=embed, file=discord.File('recent.png'))
 
 
+@client.command(name='osutop', aliases=['top'])
+async def show_top_scores(ctx, *args):
+    logger.info(
+        f"Osutop called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
+    channel_id = str(ctx.message.channel.id)
+
+    single_mode = False
+
+    if len(args) == 0:
+        author_id = ctx.message.author.id
+        osu_username = get_value_from_dbase(author_id, "username")
+    else:
+        if "-p" in args:
+            cutoff = args.index("-p")
+            which_best = args[cutoff + 1]
+            single_mode = True
+            args = args[:cutoff]
+            if cutoff != 0:
+                osu_username = " ".join(args)
+            else:
+                author_id = ctx.message.author.id
+                osu_username = get_value_from_dbase(author_id, "username")
+        else:
+            osu_username = " ".join(args)
+
+    if osu_username == -1 or osu_username == "":
+        await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
+        return
+
+    user_data = get_osu_user_data(osu_username)
+    if single_mode:
+        which_best = int(which_best)
+        if not 101 > which_best > 0:
+            await ctx.send(f"Olmayan bir skor istiyorsun 😔")
+            return
+
+        score_data = get_recent_best(osu_username, best_index=int(which_best) - 1)
+        mods = score_data['enabled_mods']
+        _, mods_text = get_mods(mods)
+        bmap_id = score_data['beatmap_id']
+        bmap_data = get_bmap_data(bmap_id)
+        bmap_setid = bmap_data["beatmapset_id"]
+        cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
+        recent_image, diff_rating, max_combo = draw_user_play(osu_username, score_data, cover_img_bytes, bmap_data,
+                                                              cover_from_cache)
+        bmap_data["difficultyrating"] = diff_rating
+        bmap_data["max_combo"] = max_combo
+        title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
+        title_text += title_text2 + f" {mods_text}"
+        osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
+            user_data)
+
+        recent_image.save("top_best.png")
+
+        footer_text = parse_recent_play(score_data)
+
+        embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
+        embed.set_image(url="attachment://top_best.png")
+        embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
+                         icon_url=f"http://s.ppy.sh/a/{player_id}")
+        embed.set_footer(text=footer_text)
+        await ctx.send(embed=embed, file=discord.File('top_best.png'))
+
+
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
 async def compare(ctx, *args):
     logger.info(
