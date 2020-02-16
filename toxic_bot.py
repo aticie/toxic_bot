@@ -311,6 +311,7 @@ async def show_top_scores(ctx, *args):
         bmap_id = score_data['beatmap_id']
         bmap_data = get_bmap_data(bmap_id)
         bmap_setid = bmap_data["beatmapset_id"]
+        put_recent_on_file(bmap_id, channel_id)
         cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
         recent_image, diff_rating, max_combo = draw_user_play(osu_username, score_data, cover_img_bytes, bmap_data,
                                                               cover_from_cache)
