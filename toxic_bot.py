@@ -521,11 +521,12 @@ async def show_country(ctx, *args):
 
     bmap_id = get_value_from_dbase(channel_id, "recent")
     if len(args) == 0:
+        requested_mods = ""
         if bmap_id == -1:
             await ctx.send(
                 "Hangi mapi istediğini bilmiyorum 😔")
             return
-    else:
+    elif len(args) < 3:
         if args[0].startswith("http"):
             bmap_id = args[0].split("/")[-1]
             try:
@@ -537,8 +538,17 @@ async def show_country(ctx, *args):
         else:
             bmap_id = args[0]
 
+        if len(args) == 2:
+            requested_mods = args[1]
+        else:
+            requested_mods = ""
+    else:
+        await ctx.send(
+            "Ne yapmak istediğini anlamadım 😔\n Kullanım: `*ctr <map_link> <mods>`")
+        return
+
     put_recent_on_file(bmap_id, channel_id)
-    country_data = get_country_rankings_v2(bmap_id)
+    country_data = get_country_rankings_v2(bmap_id, requested_mods)
     bmap_data = get_bmap_data(bmap_id)
     if len(country_data) == 0:
         await ctx.send("Ülke sıralamasında kimsenin skoru yok 😔")

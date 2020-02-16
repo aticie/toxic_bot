@@ -452,9 +452,10 @@ def get_cover_image(bmap_setid):
     return cover_img_data, False
 
 
-def get_country_rankings_v2(bmap_id):
+def get_country_rankings_v2(bmap_id, mods):
     country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
-
+    mods = mods.upper()
+    mods_array = [mods[i:i + 2] for i in range(0, len(mods), 2)]
     header = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
         "Cookie": os.environ["COOKIE"],
@@ -462,6 +463,7 @@ def get_country_rankings_v2(bmap_id):
     }
     country_params = {
         "type": "country",
+        "mods[]": mods_array,
         "mode": "osu"
     }
     countrycontent = requests.get(country_url, params=country_params, headers=header)
