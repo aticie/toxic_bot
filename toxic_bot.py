@@ -535,13 +535,13 @@ async def show_country(ctx, *args):
                 await ctx.send(f"Beatmap linkiyle ilgili bi sıkıntı var: {args[0]}\n\
                     Usage: `*country https://osu.ppy.sh/beatmapsets/1090677#osu/2284572`")
                 return
-        else:
-            bmap_id = args[0]
-
+        elif len(args) == 1:
+            try:
+                bmap_id = int(args[0])
+            except:
+                requested_mods = args[0]
         if len(args) == 2:
             requested_mods = args[1]
-        else:
-            requested_mods = ""
     else:
         await ctx.send(
             "Ne yapmak istediğini anlamadım 😔\n Kullanım: `*ctr <map_link> <mods>`")
