@@ -276,7 +276,7 @@ def get_mods(mods):
         mod_list.remove("DT")
 
     mod_text = "+" + "".join(mod_list) if len(mod_list) > 0 else ""
-    if mod_text == "+":
+    if mod_text == "":
         mod_text = "+NoMod"
     return mod_list, mod_text
 
