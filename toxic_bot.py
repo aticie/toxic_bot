@@ -154,6 +154,11 @@ async def get_prefix(ctx, arg):
 @client.command(name='prefix')
 async def change_prefix(ctx, arg):
     global prefix_file, prefixes
+
+    if not ctx.message.author.server_permissions.administrator:
+        await ctx.send(f"Bunu yapabilmen için amdin olman gerekiyor 😔")
+        return
+
     with open(prefix_file, "r") as f:
         prefixes = json.load(f)
 
