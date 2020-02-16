@@ -7,7 +7,8 @@ import math
 import os
 
 TOKEN = os.environ["DISCORD_TOKEN"]
-RECENT_CHANNEL_DICT = {}
+prefix_file = os.path.join("Users", "prefixes.json")
+prefixes = {}
 
 logger = logging.getLogger('Bot-Main')
 logger.setLevel(logging.DEBUG)
@@ -19,7 +20,15 @@ ch.setFormatter(formatter)
 logger.addHandler(fh)
 logger.addHandler(ch)
 
-client = commands.Bot(command_prefix="*", case_insensitive=True)
+
+def get_prefix(client, message):
+    with open(prefix_file, "r") as f:
+        prefixes = json.load(f)
+
+    return prefixes[str(message.guild.id)]
+
+
+client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
 
 async def add_pages(ctx, msg, data, fixed_fields):
@@ -120,7 +129,41 @@ async def add_pages(ctx, msg, data, fixed_fields):
 
 @client.event
 async def on_ready():
-    print("We are ready to roll!")
+    global prefix_file, prefixes
+    if os.path.exists(prefix_file):
+        with open(prefix_file, "r") as f:
+            prefixes = json.load(f)
+        return
+    else:
+        with open(prefix_file, "w") as f:
+            async for guild in client.fetch_guilds(limit=150):
+                prefixes[str(guild.id)] = "*"
+
+            json.dump(prefixes, f, indent=2)
+        return
+
+@client.command(name='prefix_get')
+async def get_prefix(ctx, arg):
+    global prefix_file, prefixes
+    with open(prefix_file, "r") as f:
+        prefixes = json.load(f)
+
+    await ctx.send(f"Server prefix is: {prefixes[str(ctx.message.guild.id)]}")
+    return
+
+@client.command(name='prefix')
+async def change_prefix(ctx, arg):
+    global prefix_file, prefixes
+    with open(prefix_file, "r") as f:
+        prefixes = json.load(f)
+
+    prefixes[str(ctx.message.guild.id)] = arg
+
+    with open(prefix_file, "w") as f:
+        json.dump(prefixes, f, indent=2)
+
+    await ctx.send(f"Changed prefix to: {prefixes[str(ctx.message.guild.id)]}")
+    return
 
 
 @client.event
@@ -152,7 +195,6 @@ async def link(ctx, *args):
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rcent', 'rcnt', 'rec', 'rc', 'r'])
 async def recent(ctx, *args):
-
     logger.info(
         f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)} for {ctx.author.display_name}")
 
@@ -186,7 +228,7 @@ async def recent(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
-                                                          cover_from_cache)
+                                                                  cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -249,14 +291,13 @@ async def recent_best(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
-                                                          cover_from_cache)
+                                                                  cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
     title_text += title_text2 + f" {mods_text}"
     osu_username, player_id, player_playcount, player_rank, player_country_rank, player_pp = get_embed_text_from_profile(
         user_data)
-
 
     footer_text = parse_recent_play(recent_play)
 
@@ -322,8 +363,9 @@ async def show_top_scores(ctx, *args):
         bmap_setid = bmap_data["beatmapset_id"]
         put_recent_on_file(bmap_id, channel_id)
         cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, score_data, cover_img_bytes, bmap_data,
-                                                              cover_from_cache)
+        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, score_data, cover_img_bytes,
+                                                                      bmap_data,
+                                                                      cover_from_cache)
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
         title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -397,8 +439,9 @@ async def compare(ctx, *args):
 
     if len(scores_data) == 1:
         cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, scores_data[0], cover_img_bytes, bmap_data,
-                                                              cover_from_cache)
+        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, scores_data[0], cover_img_bytes,
+                                                                      bmap_data,
+                                                                      cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
