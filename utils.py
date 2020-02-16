@@ -8,7 +8,7 @@ import json
 import requests
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 import io
-import imageio
+
 
 USER_LINK_FILE = os.path.join("Users", "link_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
@@ -212,7 +212,6 @@ def beatmap_from_cache_or_web(beatmap_id):
     if os.path.exists(path):
         ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
     else:
-        print("Requesting: " + url)
         r = requests.get(url)
         with open(path, "w", encoding='utf-8') as f:
             f.write(r.content.decode("utf-8"))
@@ -415,18 +414,34 @@ def get_cover_image(bmap_setid):
     cover_save_name = os.path.join(covers_folder, cover_image_name)
 
     if cover_image_name in covers_local:
-        print(f"DEBUG: Acquired image from local cache: {cover_save_name}")
         with open(cover_save_name, "rb") as f:
             cover_img_data = f.read()
 
         return cover_img_data, True
 
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
-    print(f"DEBUG: Acquired image from {cover_url}")
     cover_req = requests.get(url=cover_url)
     cover_img_data = cover_req.content
 
     return cover_img_data, False
+
+
+def get_country_rankings_v2(bmap_id):
+    country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
+
+    header = {
+        'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
+        "Cookie": os.environ["COOKIE"],
+        'User-Agent': "PostmanRuntime/7.22.0"
+    }
+    country_params = {
+        "type": "country",
+        "mode": "osu"
+    }
+    countrycontent = requests.get(country_url, params=country_params, headers=header)
+
+    decoded = json.loads(countrycontent.content.decode('ISO-8859-1'))
+    return decoded["scores"]
 
 
 def get_country_rankings(bmap_data):
@@ -435,7 +450,6 @@ def get_country_rankings(bmap_data):
         "User-Agent": "osu!",
         "Host": "osu.ppy.sh",
         "Accept-Encoding": "gzip, deflate"
-
     }
     bmap_md5 = bmap_data["file_md5"]
     bmap_artist = bmap_data["artist"]
@@ -459,7 +473,6 @@ def get_country_rankings(bmap_data):
         'mods': 0
     }
 
-    print(f)
     r = requests.get(country_url, headers=headers, params=params)
 
     country_data = parse_country_data(r.text)
@@ -492,16 +505,19 @@ def parse_country_data(text):
 
 
 def add_embed_fields_on_country(embed, country_data, offset):
-    for player_rank, score in enumerate(country_data):
-        player_name = score["name"]
+    for player_placement, score in enumerate(country_data):
+        player_name = score["user"]["username"]
         player_score = score["score"]
-        player_combo = score["combo"]
-        mods_list, _ = get_mods(score["enabled_mods"])
-        player_mods = "".join(mods_list) if len(mods_list) > 0 else "NoMod"
-        player_acc = get_acc(score["count300"], score["count100"], score["count50"], score["countmiss"])
         player_score = make_readable_score(player_score)
-        value_text = f"{player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods}"
-        player_text = f"**#{player_rank + offset + 1} {player_name}**"
+        player_combo = score["max_combo"]
+        mods_list = score["mods"]
+        player_mods = "".join(mods_list) if len(mods_list) > 0 else "NoMod"
+        player_acc = float(score["accuracy"])*100
+        player_pp = score["pp"]
+        player_rank = score["rank"]
+        player_play_date = score["created_at"][:10].replace("-", "/")
+        player_text = f"**{player_placement + offset + 1}. {player_name}** - {player_play_date}"
+        value_text = f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp**"
         embed.add_field(name=player_text, value=value_text, inline=False)
 
     return embed
@@ -551,11 +567,11 @@ def draw_map_completion(d, bmp, play_data):
     clr = (255, 255, 255, 225)
     start = -90
     end = 360 * completion - 90
-    d.arc(((630, 10), (700, 80)), start, end, fill=clr, width=5)
+    d.arc(((660, 15), (730, 85)), start, end, fill=clr, width=5)
     if completion >= 0.1:
-        d.text((642, 29), f"{int(completion * 100)}%", fill=clr, font=font_2)
+        d.text((672, 34), f"{int(completion * 100)}%", fill=clr, font=font_2)
     else:
-        d.text((645, 25), f"{int(completion * 100)}%", fill=clr, font=font_1)
+        d.text((675, 30), f"{int(completion * 100)}%", fill=clr, font=font_1)
 
     return
 
@@ -758,4 +774,4 @@ def parse_recent_play(score_data):
 
 if __name__ == "__main__":
     bmap_data = get_bmap_data(978026)
-    get_country_rankings(bmap_data)
+    get_country_rankings_v2(bmap_data)

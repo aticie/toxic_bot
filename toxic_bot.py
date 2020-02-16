@@ -470,8 +470,11 @@ async def show_country(ctx, *args):
             bmap_id = args[0]
 
     RECENT_CHANNEL_DICT[channel_id] = bmap_id
+    country_data = get_country_rankings_v2(bmap_id)
     bmap_data = get_bmap_data(bmap_id)
-    country_data = get_country_rankings(bmap_data)
+    if len(country_data) == 0:
+        await ctx.send("Ülke sıralamasında kimsenin skoru yok 😔")
+        return
 
     title_text, desc_text, bmap_url, cover_url = get_embed_text_from_beatmap(bmap_data)
 
