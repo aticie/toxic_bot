@@ -595,6 +595,7 @@ async def show_country(ctx, *args):
             bmap_id = args[0].split("/")[-1]
             try:
                 bmap_id = int(bmap_id)
+                requested_mods = ""
             except:
                 await ctx.send(f"Beatmap linkiyle ilgili bi sıkıntı var: {args[0]}\n\
                     Usage: `*country https://osu.ppy.sh/beatmapsets/1090677#osu/2284572`")
@@ -618,15 +619,17 @@ async def show_country(ctx, *args):
         await ctx.send("Ülke sıralamasında kimsenin skoru yok 😔")
         return
 
-    title_text, desc_text, bmap_url, cover_url = get_embed_text_from_beatmap(bmap_data)
+    if len(country_data) > 5:
+        desc_text = add_embed_fields_on_country(country_data[:5], 0)
+    else:
+        desc_text = add_embed_fields_on_country(country_data, 0)
 
+    title_text, title_text2, bmap_url, cover_url = get_embed_text_from_beatmap(bmap_data)
+    title_text = title_text + " " + title_text2
     embed = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
     embed.set_image(url=cover_url)
     embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-    if len(country_data) > 5:
-        embed = add_embed_fields_on_country(embed, country_data[:5], 0)
-    else:
-        embed = add_embed_fields_on_country(embed, country_data, 0)
+
 
     msg = await ctx.send(embed=embed)
 

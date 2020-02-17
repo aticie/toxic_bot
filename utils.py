@@ -548,8 +548,7 @@ def fix_rank(rank):
     return rank
 
 
-def add_embed_fields_on_country(embed, country_data, offset):
-    field_name = "_ _"
+def add_embed_fields_on_country(country_data, offset):
     field_value = ""
     for player_placement, score in enumerate(country_data):
         player_name = score["user"]["username"]
@@ -565,15 +564,13 @@ def add_embed_fields_on_country(embed, country_data, offset):
         player_play_date = score["created_at"][:10].replace("-", "/")
         player_miss = score["statistics"]["count_miss"]
         player_url = f"https://osu.ppy.sh/users/{player_id}"
-        field_value += f"[**{player_placement + offset + 1}. {player_name}**]({player_url}) - {player_play_date}\n"
+        field_value += f"**{player_placement + offset + 1}. [{player_name}]({player_url})** - {player_play_date}\n"
         if player_pp is None:
             field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)\n\n"
         else:
             field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)\n\n"
 
-    embed.add_field(name=field_name, value=field_value, inline=False)
-
-    return embed
+    return field_value
 
 
 def add_embed_description_on_compare(scores, offset, bmp):
