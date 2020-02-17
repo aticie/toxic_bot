@@ -82,11 +82,10 @@ async def add_pages(ctx, msg, data, fixed_fields):
             show_data = data[begin:end]
 
             if called_by == "country":
+                desc_text = add_embed_fields_on_country(show_data, begin)
                 embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
                 embed2.set_image(url=cover_url)
                 embed2.set_author(name=author_name, icon_url=author_icon_url)
-
-                add_embed_fields_on_country(embed2, show_data, begin)
             elif called_by == "compare":
                 player_url = fixed_fields["player_url"]
                 avatar_url = fixed_fields["avatar_url"]
@@ -109,10 +108,10 @@ async def add_pages(ctx, msg, data, fixed_fields):
             end = min(num * 5, max_index)
             show_data = data[begin:end]
             if called_by == "country":
+                desc_text = add_embed_fields_on_country(show_data, begin)
                 embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
                 embed2.set_image(url=cover_url)
                 embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-                add_embed_fields_on_country(embed2, show_data, begin)
             elif called_by == "compare":
                 player_url = fixed_fields["player_url"]
                 avatar_url = fixed_fields["avatar_url"]
