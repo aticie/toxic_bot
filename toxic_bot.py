@@ -186,6 +186,11 @@ async def on_command_error(ctx, error):
         return
 
 
+@client.command(name='map')
+async def map(ctx, arg):
+    await ctx.send(f"Bu özellik henüz yok 😔")
+    return
+
 @client.command(name='osulink', aliases=['link'])
 async def link(ctx, *args):
     logger.info(f"Link called from: {ctx.message.guild.name} - {ctx.message.channel.name}")
