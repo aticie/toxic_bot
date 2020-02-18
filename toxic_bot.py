@@ -602,6 +602,7 @@ async def show_country(ctx, *args):
         elif len(args) == 1:
             try:
                 bmap_id = int(args[0])
+                requested_mods = ""
             except:
                 requested_mods = args[0]
         if len(args) == 2:
