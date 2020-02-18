@@ -1,5 +1,6 @@
 import discord
 import subprocess
+import sys
 from utils import *
 from discord.ext import commands
 import logging
