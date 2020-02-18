@@ -30,6 +30,11 @@ def get_prefix(client, message):
 
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
+@client.command(name='restart')
+@commands.is_owner()
+async def _restart_bot():
+    await bot.logout()
+    subprocess.call([sys.executable, "toxic_bot.py"])
 
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
