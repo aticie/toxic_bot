@@ -16,6 +16,22 @@ OSU_API = os.environ["OSU_API_KEY"]
 with open("mods.txt", "r") as mods_file:
     all_mods = mods_file.readlines()
 
+with open("ranked_mods.txt", "r") as mods_file:
+    ranked_mods = mods_file.readlines()
+
+
+def check_and_return_mods(mods):
+    if len(mods) % 2:
+        return False
+
+    mods = [mods[i:i + 2] for i in range(0, len(mods), 2)]
+
+    for mod in mods:
+        if mod not in ranked_mods:
+            mods.remove(mod)
+
+    return mods
+
 
 def strike(text):
     result = ''

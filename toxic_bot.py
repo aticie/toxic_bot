@@ -187,8 +187,34 @@ async def on_command_error(ctx, error):
 
 
 @client.command(name='map')
-async def map(ctx, arg):
-    await ctx.send(f"Bu özellik henüz yok 😔")
+async def map(ctx, *args):
+    logger.info(
+        f"Map called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
+    channel_id = str(ctx.message.channel.id)
+    bmap_id = get_value_from_dbase(channel_id, "recent")
+    requested_mods = ""
+    if len(args)>1:
+        await ctx.send(f"Garip bir şey istedin anlamadım 😔\n`{ctx.message.content}` ne demek?")
+        return
+    elif len(args)==1:
+        if args[0].startswith("http"):
+            bmap_id = args[0]
+            await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
+            return
+        else:
+            try:
+                bmap_id = int(args[0])
+                await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
+            except:
+                requested_mods = check_and_return_mods(args[0])
+                if isinstance(requested_mods,list):
+                    mods_text = " ".join(requested_mods)
+                    await ctx.send(f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
+                else:
+                    await ctx.send(f"`{args[0]}` gibi bir şey istedin ama mapin id'sini çıkaramadım 😔")
+            return   
+    
+    await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
     return
 
 @client.command(name='osulink', aliases=['link'])
