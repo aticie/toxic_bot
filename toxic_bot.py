@@ -1,4 +1,5 @@
 import discord
+import subprocess
 from utils import *
 from discord.ext import commands
 import logging
@@ -34,7 +35,7 @@ client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 @commands.is_owner()
 async def _restart_bot(ctx):
     await ctx.send("Restarting...")
-    await bot.logout()
+    await client.logout()
     subprocess.call([sys.executable, "toxic_bot.py"])
 
 async def add_pages(ctx, msg, data, fixed_fields):
