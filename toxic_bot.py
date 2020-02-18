@@ -205,6 +205,7 @@ async def map(ctx, *args):
             try:
                 bmap_id = int(args[0])
                 await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
+                return
             except:
                 requested_mods = check_and_return_mods(args[0])
                 if isinstance(requested_mods,list):
