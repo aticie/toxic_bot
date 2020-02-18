@@ -18,6 +18,7 @@ with open("mods.txt", "r") as mods_file:
 
 with open("ranked_mods.txt", "r") as mods_file:
     ranked_mods = mods_file.readlines()
+    ranked_mods = [s.rstrip() for s in ranked_mods]
 
 
 def check_and_return_mods(mods):
@@ -26,12 +27,16 @@ def check_and_return_mods(mods):
 
     mods = [mods[i:i + 2] for i in range(0, len(mods), 2)]
 
+    selected_mods = []
     for mod in mods:
         mod_u = mod.upper()
-        if mod_u not in ranked_mods:
-            mods.remove(mod)
+        if mod_u in ranked_mods:
+            selected_mods.append(mod)
 
-    return mods
+    if len(selected_mods) == 0:
+        return False
+    else:
+        return selected_mods
 
 
 def strike(text):

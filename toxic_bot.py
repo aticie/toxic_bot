@@ -215,7 +215,7 @@ async def map(ctx, *args):
                     mods_text = "".join(requested_mods)
                     await ctx.send(f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
                 else:
-                    await ctx.send(f"`{args[0]}` gibi bir şey istedin ama mapin id'sini çıkaramadım 😔")
+                    await ctx.send(f"`{args[0]}` gibi bir şey istedin ama ne istediğini çıkaramadım 😔")
             return   
     
     await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
