@@ -27,7 +27,8 @@ def check_and_return_mods(mods):
     mods = [mods[i:i + 2] for i in range(0, len(mods), 2)]
 
     for mod in mods:
-        if mod not in ranked_mods:
+        mod_u = mod.upper()
+        if mod_u not in ranked_mods:
             mods.remove(mod)
 
     return mods

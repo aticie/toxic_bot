@@ -192,6 +192,9 @@ async def map(ctx, *args):
         f"Map called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
     channel_id = str(ctx.message.channel.id)
     bmap_id = get_value_from_dbase(channel_id, "recent")
+    if bmap_id == -1:
+        await ctx.send(f"İstediğin beatmapi bulamadım 😔")
+        return
     requested_mods = ""
     if len(args)>1:
         await ctx.send(f"Garip bir şey istedin anlamadım 😔\n`{ctx.message.content}` ne demek?")
@@ -209,7 +212,7 @@ async def map(ctx, *args):
             except:
                 requested_mods = check_and_return_mods(args[0])
                 if isinstance(requested_mods,list):
-                    mods_text = " ".join(requested_mods)
+                    mods_text = "".join(requested_mods)
                     await ctx.send(f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
                 else:
                     await ctx.send(f"`{args[0]}` gibi bir şey istedin ama mapin id'sini çıkaramadım 😔")
