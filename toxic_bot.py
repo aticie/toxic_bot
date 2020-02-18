@@ -32,7 +32,8 @@ client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
 @client.command(name='restart')
 @commands.is_owner()
-async def _restart_bot():
+async def _restart_bot(ctx):
+    await ctx.send("Restarting...")
     await bot.logout()
     subprocess.call([sys.executable, "toxic_bot.py"])
 
