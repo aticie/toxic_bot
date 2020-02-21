@@ -1,12 +1,14 @@
-import discord
-import subprocess
-import sys
-from utils import *
-from discord.ext import commands
-import logging
 import asyncio
+import logging
 import math
 import os
+import subprocess
+import sys
+import argparse
+import discord
+from discord.ext import commands
+
+from utils import *
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 prefix_file = os.path.join("Users", "prefixes.json")
@@ -32,6 +34,10 @@ def get_prefix(client, message):
 
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
+def parse_args():
+
+    return
+
 @client.command(name='restart')
 @commands.is_owner()
 async def _restart_bot(ctx):
@@ -39,24 +45,33 @@ async def _restart_bot(ctx):
     await client.logout()
     subprocess.call([sys.executable, "toxic_bot.py"])
 
+
+def add_single_page(ctx, show_data, begin, fixed_fields):
+    if fixed_fields["callsign"] == "country":
+        desc_text = add_embed_fields_on_country(show_data, begin)
+        embed2 = discord.Embed(title=fixed_fields["title_text"], description=fixed_fields["desc_text"],
+                               color=ctx.author.color, url=fixed_fields["bmap_url"])
+        embed2.set_image(url=fixed_fields["cover_url"])
+        embed2.set_author(name=fixed_fields["author_name"], icon_url=fixed_fields["author_icon_url"])
+    elif fixed_fields["callsign"] == "compare":
+        embed2 = discord.Embed(title=fixed_fields["title_text"], description=fixed_fields["desc_text"],
+                               color=ctx.author.color, url=fixed_fields["bmap_url"])
+        embed2.set_image(url=fixed_fields["cover_url"])
+        embed2.set_author(name=fixed_fields["author_name"], url=fixed_fields["player_url"],
+                          icon_url=fixed_fields["avatar_url"])
+
+
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
     num = 1
 
-    called_by = fixed_fields["callsign"]
-
-    if called_by == "country":
+    if fixed_fields["callsign"] == "country":
         max_page = math.ceil(max_index / 5)  # Show 5 results per page
     else:
         max_page = math.ceil(max_index / 3)  # Show 5 results per page
     if max_page <= 1:
         return
-    title_text = fixed_fields["title_text"]
-    desc_text = fixed_fields["desc_text"]
-    author_name = fixed_fields["author_name"]
-    author_icon_url = fixed_fields["author_icon_url"]
-    bmap_url = fixed_fields["bmap_url"]
-    cover_url = fixed_fields["cover_url"]
+
     reactmoji = ['⬅', '➡']
     while True:
         for react in reactmoji:
@@ -80,7 +95,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
         if user != ctx.message.author:
             pass
         elif '⬅' in str(res.emoji):
-            logger.info(f'<< Going backward on: {called_by} at channel_id: {ctx.channel.id}')
+            logger.info(f'<< Going backward on: {fixed_fields["callsign"]} at channel_id: {ctx.channel.id}')
             num -= 1
             if num < 1:
                 num = max_page
@@ -89,25 +104,14 @@ async def add_pages(ctx, msg, data, fixed_fields):
             end = min(num * 5, max_index)
             show_data = data[begin:end]
 
-            if called_by == "country":
-                desc_text = add_embed_fields_on_country(show_data, begin)
-                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
-                embed2.set_image(url=cover_url)
-                embed2.set_author(name=author_name, icon_url=author_icon_url)
-            elif called_by == "compare":
-                player_url = fixed_fields["player_url"]
-                avatar_url = fixed_fields["avatar_url"]
-
-                embed2 = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
-                embed2.set_image(url=cover_url)
-                embed2.set_author(name=author_name, url=player_url, icon_url=avatar_url)
-
+            embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
             embed2.set_footer(text=f"Page {num} of {max_page}")
+
             await msg.clear_reactions()
             await msg.edit(embed=embed2)
 
         elif '➡' in str(res.emoji):
-            logger.info(f'>> Going forward on: {called_by} at channel_id: {ctx.channel.id}')
+            logger.info(f'>> Going forward on: {fixed_fields["callsign"]} at channel_id: {ctx.channel.id}')
             num += 1
             if num > max_page:
                 num = 1
@@ -115,19 +119,8 @@ async def add_pages(ctx, msg, data, fixed_fields):
             begin = (num - 1) * 5
             end = min(num * 5, max_index)
             show_data = data[begin:end]
-            if called_by == "country":
-                desc_text = add_embed_fields_on_country(show_data, begin)
-                embed2 = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
-                embed2.set_image(url=cover_url)
-                embed2.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-            elif called_by == "compare":
-                player_url = fixed_fields["player_url"]
-                avatar_url = fixed_fields["avatar_url"]
 
-                embed2 = discord.Embed(title=title_text, description=desc_text, url=bmap_url)
-                embed2.set_image(url=cover_url)
-                embed2.set_author(name=author_name, url=player_url, icon_url=avatar_url)
-
+            embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
             embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
@@ -149,6 +142,7 @@ async def on_ready():
             json.dump(prefixes, f, indent=2)
         return
 
+
 @client.command(name='prefix_get')
 async def get_prefix(ctx, arg):
     global prefix_file, prefixes
@@ -157,6 +151,7 @@ async def get_prefix(ctx, arg):
 
     await ctx.send(f"Server prefix is: {prefixes[str(ctx.message.guild.id)]}")
     return
+
 
 @client.command(name='prefix')
 @commands.has_permissions(administrator=True)
@@ -196,10 +191,10 @@ async def map(ctx, *args):
         await ctx.send(f"İstediğin beatmapi bulamadım 😔")
         return
     requested_mods = ""
-    if len(args)>1:
+    if len(args) > 1:
         await ctx.send(f"Garip bir şey istedin anlamadım 😔\n`{ctx.message.content}` ne demek?")
         return
-    elif len(args)==1:
+    elif len(args) == 1:
         if args[0].startswith("http"):
             bmap_id = args[0]
             await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
@@ -211,15 +206,17 @@ async def map(ctx, *args):
                 return
             except:
                 requested_mods = check_and_return_mods(args[0])
-                if isinstance(requested_mods,list):
+                if isinstance(requested_mods, list):
                     mods_text = "".join(requested_mods)
-                    await ctx.send(f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
+                    await ctx.send(
+                        f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
                 else:
                     await ctx.send(f"`{args[0]}` gibi bir şey istedin ama ne istediğini çıkaramadım 😔")
-            return   
-    
+            return
+
     await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
     return
+
 
 @client.command(name='osulink', aliases=['link'])
 async def link(ctx, *args):
@@ -672,7 +669,6 @@ async def show_country(ctx, *args):
     embed = discord.Embed(title=title_text, description=desc_text, color=ctx.author.color, url=bmap_url)
     embed.set_image(url=cover_url)
     embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
-
 
     msg = await ctx.send(embed=embed)
 
