@@ -34,9 +34,10 @@ def get_prefix(client, message):
 
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
-def parse_args():
 
+def parse_args():
     return
+
 
 @client.command(name='restart')
 @commands.is_owner()
@@ -49,7 +50,7 @@ async def _restart_bot(ctx):
 def add_single_page(ctx, show_data, begin, fixed_fields):
     if fixed_fields["callsign"] == "country":
         desc_text = add_embed_fields_on_country(show_data, begin)
-        embed2 = discord.Embed(title=fixed_fields["title_text"], description=fixed_fields["desc_text"],
+        embed2 = discord.Embed(title=fixed_fields["title_text"], description=desc_text,
                                color=ctx.author.color, url=fixed_fields["bmap_url"])
         embed2.set_image(url=fixed_fields["cover_url"])
         embed2.set_author(name=fixed_fields["author_name"], icon_url=fixed_fields["author_icon_url"])
@@ -60,15 +61,18 @@ def add_single_page(ctx, show_data, begin, fixed_fields):
         embed2.set_author(name=fixed_fields["author_name"], url=fixed_fields["player_url"],
                           icon_url=fixed_fields["avatar_url"])
 
+    return embed2
 
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
     num = 1
 
     if fixed_fields["callsign"] == "country":
-        max_page = math.ceil(max_index / 5)  # Show 5 results per page
+        result_per_page = 5  # Show 5 results per page
     else:
-        max_page = math.ceil(max_index / 3)  # Show 5 results per page
+        result_per_page = 3  # Show 3 results per page
+
+    max_page = math.ceil(max_index / result_per_page)
     if max_page <= 1:
         return
 
@@ -91,7 +95,6 @@ async def add_pages(ctx, msg, data, fixed_fields):
         except asyncio.TimeoutError:
             return await msg.clear_reactions()
 
-        embed2 = discord.Embed()
         if user != ctx.message.author:
             pass
         elif '⬅' in str(res.emoji):
@@ -100,8 +103,8 @@ async def add_pages(ctx, msg, data, fixed_fields):
             if num < 1:
                 num = max_page
 
-            begin = (num - 1) * 5
-            end = min(num * 5, max_index)
+            begin = (num - 1) * result_per_page
+            end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
             embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
@@ -116,8 +119,8 @@ async def add_pages(ctx, msg, data, fixed_fields):
             if num > max_page:
                 num = 1
 
-            begin = (num - 1) * 5
-            end = min(num * 5, max_index)
+            begin = (num - 1) * result_per_page
+            end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
             embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
@@ -143,19 +146,16 @@ async def on_ready():
         return
 
 
-@client.command(name='prefix_get')
-async def get_prefix(ctx, arg):
+async def get_prefix(ctx):
     global prefix_file, prefixes
+
     with open(prefix_file, "r") as f:
         prefixes = json.load(f)
 
     await ctx.send(f"Server prefix is: {prefixes[str(ctx.message.guild.id)]}")
-    return
 
 
-@client.command(name='prefix')
-@commands.has_permissions(administrator=True)
-async def change_prefix(ctx, arg):
+async def set_prefix(ctx, arg):
     global prefix_file, prefixes
 
     with open(prefix_file, "r") as f:
@@ -167,12 +167,25 @@ async def change_prefix(ctx, arg):
         json.dump(prefixes, f, indent=2)
 
     await ctx.send(f"Changed prefix to: {prefixes[str(ctx.message.guild.id)]}")
+
+
+@client.command(name='prefix')
+async def prefix(ctx, arg1, arg2=None):
+    if arg1 == "set":
+        if arg2 is not None:
+            await set_prefix(ctx, arg2)
+        else:
+            await ctx.send("Prefix'i ne yapmalıyım yazmamışsın 😔")
+    elif arg1 == "get":
+        await get_prefix(ctx)
+    else:
+        await ctx.send("Usage:` *prefix set <new-prefix>`\n`*prefix get`")
     return
 
 
 @client.event
 async def on_command_error(ctx, error):
-    if ctx.command == None:
+    if ctx.command is None:
         return
     elif ctx.command.is_on_cooldown(ctx):
         await ctx.send(error)
