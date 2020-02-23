@@ -260,7 +260,8 @@ async def map(ctx, *args):
 
     put_recent_on_file(bmap_id, ctx.message.channel.id)
     embed_fields = show_bmap_details(bmap_metadata, bmap_data, mods)
-    embed = discord.Embed(title=embed_fields["title_text"], description=embed_fields["desc_text"], url=embed_fields["title_url"])
+    embed = discord.Embed(title=embed_fields["title_text"], description=embed_fields["desc_text"],
+                          url=embed_fields["title_url"])
     embed.set_author(name=embed_fields["author_text"])
     embed.set_image(url=embed_fields["cover_url"])
     for field in embed_fields["pp_fields"]:
@@ -437,11 +438,25 @@ async def show_top_scores(ctx, *args):
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
+    user_data = get_osu_user_data(osu_username)
+
     if not single_mode:
-        await ctx.send(f"Bu özellik henüz yok 😔")
+        user_id = user_data["user_id"]
+        scores_data = get_user_best_v2(user_id)
+        desc_text = add_embed_description_on_osutop(scores_data[:5])
+        player_country = scores_data[0]["user"]["country_code"]
+        author_icon_url = f"https/osu.ppy.sh/images/flags/{player_country}.png"
+        embed = discord.Embed(description=desc_text, url=scores_data[0]['user']['avatar_url'])
+        'https://a.ppy.sh/5642779?1566407986.png'
+        embed.set_author(name=f"Top osu! standard plays for {user_data['username']}",
+                         url=f"https://osu.ppy.sh/users/{user_data['user_id']}",
+                         icon_url=author_icon_url)
+
+
+
+        await ctx.send(embed=embed)
         return
 
-    user_data = get_osu_user_data(osu_username)
     if single_mode:
         which_best = int(which_best)
         if not 101 > which_best > 0:

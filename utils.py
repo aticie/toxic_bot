@@ -426,9 +426,14 @@ def get_recent_best(user_id, date_index=None, best_index=None):
 
 
 def get_user_best_v2(user_id):
-    rs_api_url = "https://osu.ppy.sh/users/{user_id}/scores/best?"
+    rs_api_url = f"https://osu.ppy.sh/users/{user_id}/scores/best?"
     params = {'mode': 'osu',
-              'limit': '51'}
+              'limit': '100'}
+    header = {
+        'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
+        "Cookie": os.environ["COOKIE"],
+        'User-Agent': "PostmanRuntime/7.22.0"
+    }
     req = requests.get(url=rs_api_url, params=params)
     plays = req.json()
     return plays
@@ -711,9 +716,9 @@ def add_embed_fields_on_country(country_data, offset):
         player_url = f"https://osu.ppy.sh/users/{player_id}"
         field_value += f"**{player_placement + offset + 1}. [{player_name}]({player_url})** - {player_play_date}\n"
         if player_pp is None:
-            field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)\n\n"
+            field_value += f"**{player_rank} Rank** - {player_score} (x{player_combo}) - {player_acc:.2f}% {player_mods} - ({player_miss} miss)\n\n"
         else:
-            field_value += f"**{player_rank} Rank** - {player_score} ({player_combo}x) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)\n\n"
+            field_value += f"**{player_rank} Rank** - {player_score} (x{player_combo}) - {player_acc:.2f}% {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)\n\n"
 
     return field_value
 
@@ -746,6 +751,47 @@ def add_embed_description_on_compare(scores, offset, bmp):
         desc_text += f"**{play_rank + offset + 1}. {mods_text[1:]}** Score [{diff_rate:.2f}⭐]\n" \
                      f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** ({pp_fc:.2f}pp for FC) ▸{player_acc:.2f}%\n" \
                      f"{player_score} ▸ {player_combo}x/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
+                     f"▸Score set {timeago} ago\n"
+    return desc_text
+
+
+def add_embed_description_on_osutop(scores):
+
+    desc_text = ""
+    for play_rank, score in enumerate(scores):
+        player_score = score["score"]
+        player_combo = score["max_combo"]
+        mods = score["mods"]
+        player_mods = "".join(mods) if len(mods) > 0 else "NoMod"
+        mods_int = enumerate_mods(mods)
+
+        bmp = beatmap_from_cache_or_web(score["beatmap"]["id"])
+        bmap_info = bmap_info_from_oppai(bmp, mods_int)
+        bmap_title = score["beatmapset"]["title"]
+        bmap_version = score["beatmap"]["version"]
+        bmap_url = score["beatmap"]["url"]
+
+        diff_rate = bmap_info["stars"]
+        max_combo = bmap_info["max_combo"]
+        count300 = score["statistics"]["count_300"]
+        count100 = score["statistics"]["count_100"]
+        count50 = score["statistics"]["count_50"]
+        countmiss = score["statistics"]["count_miss"]
+        player_rank = fix_rank(score["rank"])
+        player_acc = get_acc(count300, count100, count50, countmiss)
+        player_score = make_readable_score(player_score)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods_int, player_combo)
+        player_pp = float(score["pp"])
+        date = score["created_at"]
+        timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%dT%H:%M:%S+00:00'))
+        show_pp_if_fc_text = int(countmiss) > 0 or (int(player_combo) + 10 < int(max_combo))
+        if show_pp_if_fc_text:
+            pp_text = f"({pp_fc:.2f}pp for FC)"
+        else:
+            pp_text = ""
+        desc_text += f"**{play_rank + 1}.** [{bmap_title} {bmap_version}]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]\n" \
+                     f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** {pp_text} ▸{player_acc:.2f}%\n" \
+                     f"{player_score} ▸ x{player_combo}/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
                      f"▸Score set {timeago} ago\n"
     return desc_text
 
