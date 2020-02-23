@@ -459,7 +459,10 @@ def get_osu_user_data(username):
                    'u': username
                    }
     user_req = requests.get(url=user_api_url, params=user_params)
-    user_data = user_req.json()[0]
+    user_json = user_req.json()
+    if not len(user_json) == 1:
+        return None
+    user_data = user_json[0]
     return user_data
 
 
@@ -756,13 +759,12 @@ def add_embed_description_on_compare(scores, offset, bmp):
 
 
 def add_embed_description_on_osutop(scores):
-
     desc_text = ""
     for play_rank, score in enumerate(scores):
         player_score = score["score"]
         player_combo = score["max_combo"]
         mods = score["mods"]
-        player_mods = "".join(mods) if len(mods) > 0 else "NoMod"
+        player_mods = "+"+"".join(mods) if len(mods) > 0 else ""
         mods_int = enumerate_mods(mods)
 
         bmp = beatmap_from_cache_or_web(score["beatmap"]["id"])
@@ -789,7 +791,7 @@ def add_embed_description_on_osutop(scores):
             pp_text = f"({pp_fc:.2f}pp for FC)"
         else:
             pp_text = ""
-        desc_text += f"**{play_rank + 1}. [{bmap_title} {bmap_version}]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]**\n" \
+        desc_text += f"**{play_rank + 1}. [{bmap_title} [{bmap_version}]]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]**\n" \
                      f"**▸{player_rank} Rank** ▸**{player_pp:.2f}pp** {pp_text} ▸{player_acc:.2f}%\n" \
                      f"▸{player_score} ▸ x{player_combo}/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
                      f"▸Score set {timeago} ago\n"

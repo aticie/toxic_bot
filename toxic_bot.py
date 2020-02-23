@@ -439,6 +439,9 @@ async def show_top_scores(ctx, *args):
         return
 
     user_data = get_osu_user_data(osu_username)
+    if user_data is None:
+        ctx.send(f"`{osu_username}` diye birisi yok 😔")
+        return
 
     if not single_mode:
         user_id = user_data["user_id"]
@@ -448,13 +451,9 @@ async def show_top_scores(ctx, *args):
         author_icon_url = f"https://osu.ppy.sh/images/flags/{player_country}.png"
         embed = discord.Embed(description=desc_text, color=ctx.author.color)
         embed.set_thumbnail(url=scores_data[0]['user']['avatar_url'])
-        'https://a.ppy.sh/5642779?1566407986.png'
         embed.set_author(name=f"Top osu! standard plays for {user_data['username']}",
                          url=f"https://osu.ppy.sh/users/{user_data['user_id']}",
                          icon_url=author_icon_url)
-
-
-
         await ctx.send(embed=embed)
         return
 
