@@ -446,7 +446,7 @@ async def show_top_scores(ctx, *args):
         desc_text = add_embed_description_on_osutop(scores_data[:5])
         player_country = scores_data[0]["user"]["country_code"]
         author_icon_url = f"https://osu.ppy.sh/images/flags/{player_country}.png"
-        embed = discord.Embed(description=desc_text)
+        embed = discord.Embed(description=desc_text, color=ctx.author.color)
         embed.set_thumbnail(url=scores_data[0]['user']['avatar_url'])
         'https://a.ppy.sh/5642779?1566407986.png'
         embed.set_author(name=f"Top osu! standard plays for {user_data['username']}",
