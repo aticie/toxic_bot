@@ -258,6 +258,7 @@ async def map(ctx, *args):
         await ctx.send("Böyle bir beatmap yok")
         return
 
+    put_recent_on_file(bmap_id, ctx.message.channel.id)
     embed_fields = show_bmap_details(bmap_metadata, bmap_data, mods)
     embed = discord.Embed(title=embed_fields["title_text"], description=embed_fields["desc_text"], url=embed_fields["title_url"])
     embed.set_author(name=embed_fields["author_text"])
