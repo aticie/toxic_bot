@@ -789,9 +789,9 @@ def add_embed_description_on_osutop(scores):
             pp_text = f"({pp_fc:.2f}pp for FC)"
         else:
             pp_text = ""
-        desc_text += f"**{play_rank + 1}.** [{bmap_title} {bmap_version}]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]\n" \
-                     f"**{player_rank} Rank** ▸**{player_pp:.2f}pp** {pp_text} ▸{player_acc:.2f}%\n" \
-                     f"{player_score} ▸ x{player_combo}/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
+        desc_text += f"**{play_rank + 1}. [{bmap_title} {bmap_version}]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]**\n" \
+                     f"**▸{player_rank} Rank** ▸**{player_pp:.2f}pp** {pp_text} ▸{player_acc:.2f}%\n" \
+                     f"▸{player_score} ▸ x{player_combo}/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
                      f"▸Score set {timeago} ago\n"
     return desc_text
 
