@@ -1,13 +1,14 @@
+import colorsys
+import io
+import json
+import os
+from datetime import datetime
+
 import cv2
 import numpy as np
-import colorsys
-from datetime import datetime, timedelta
-import os
-from oppai import *
-import json
 import requests
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
-import io
+from oppai import *
 
 USER_LINK_FILE = os.path.join("Users", "link_list.json")
 RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
@@ -23,7 +24,7 @@ with open("ranked_mods.txt", "r") as mods_file:
 
 def check_and_return_mods(mods):
     if len(mods) % 2:
-        return False
+        return []
 
     mods = [mods[i:i + 2] for i in range(0, len(mods), 2)]
 
@@ -31,10 +32,10 @@ def check_and_return_mods(mods):
     for mod in mods:
         mod_u = mod.upper()
         if mod_u in ranked_mods:
-            selected_mods.append(mod)
+            selected_mods.append(mod_u)
 
     if len(selected_mods) == 0:
-        return False
+        return []
     else:
         return selected_mods
 
@@ -246,10 +247,16 @@ def beatmap_from_cache_or_web(beatmap_id):
 def bmap_info_from_oppai(ez, mods):
     mods = int(mods)
     ezpp_set_mods(ez, mods)
-    return ezpp_stars(ez), ezpp_max_combo(ez)
+    bmap = {"stars": ezpp_stars(ez),
+            "max_combo": ezpp_max_combo(ez),
+            "ar": ezpp_ar(ez),
+            "od": ezpp_od(ez),
+            "hp": ezpp_hp(ez),
+            "cs": ezpp_cs(ez)}
+    return bmap
 
 
-def calculate_pp(ez, count100, count50, countmiss, mods, combo):
+def calculate_pp_of_score(ez, count100, count50, countmiss, mods, combo):
     count100 = int(count100)
     count50 = int(count50)
     countmiss = int(countmiss)
@@ -269,6 +276,22 @@ def calculate_pp(ez, count100, count50, countmiss, mods, combo):
     pp_ss = ezpp_pp(ez)
 
     return pp_raw, pp_fc, pp_95, pp_ss
+
+
+def calculate_pp_of_map(ez, mods):
+    ezpp_set_mods(ez, mods)
+    ezpp_set_combo(ez, ezpp_max_combo(ez))
+    ezpp_set_nmiss(ez, 0)
+    ezpp_set_accuracy_percent(ez, 95)
+    pp_95 = ezpp_pp(ez)
+    ezpp_set_accuracy_percent(ez, 98)
+    pp_98 = ezpp_pp(ez)
+    ezpp_set_accuracy_percent(ez, 99)
+    pp_99 = ezpp_pp(ez)
+    ezpp_set_accuracy_percent(ez, 100)
+    pp_ss = ezpp_pp(ez)
+
+    return pp_ss, pp_99, pp_98, pp_95
 
 
 def get_acc(count300, count100, count50, countmiss):
@@ -435,9 +458,31 @@ def get_osu_user_data(username):
     return user_data
 
 
+def enumerate_mods(mods_array):
+    mod_num = 0
+    mod_enum = {"NF": 1,
+                "EZ": 2,
+                "TD": 4,
+                "HD": 8,
+                "HR": 16,
+                "SD": 32,
+                "DT": 64,
+                "HT": 256,
+                "NC": 576,
+                "FL": 1024}
+
+    for mod in mods_array:
+        mod_num += mod_enum[mod]
+
+    return mod_num
+
+
 def get_bmap_data(bmap_id, mods=0, limit=1):
-    bmap_api_url = "https://osu.ppy.sh/api/get_beatmaps"
+    if isinstance(mods, list):
+        mods = enumerate_mods(mods)
     mods = int(mods)
+
+    bmap_api_url = "https://osu.ppy.sh/api/get_beatmaps"
     bmap_id = int(bmap_id)
     bmap_params = {'k': OSU_API,  # Api key
                    'b': bmap_id,
@@ -445,9 +490,87 @@ def get_bmap_data(bmap_id, mods=0, limit=1):
                    'limit': limit}
 
     bmap_req = requests.get(url=bmap_api_url, params=bmap_params)
-    bmap_data = bmap_req.json()[0]
+    try:
+        bmap_data = bmap_req.json()[0]
+    except:
+        return None
 
     return bmap_data
+
+
+def show_bmap_details(bmap_metadata, bmap_data, mods):
+    bmap_id = bmap_metadata["beatmap_id"]
+    bmap_setid = bmap_metadata["beatmapset_id"]
+    bmap_title = bmap_metadata["title"]
+    bmap_artist = bmap_metadata["artist"]
+    bmap_diff = bmap_metadata["version"]
+    bmap_creator = bmap_metadata["creator"]
+    bmap_bpm = bmap_metadata["bpm"]
+    bmap_length = bmap_metadata["total_length"]
+    bmap_length = int(bmap_length)
+    bmap_mins = bmap_length // 60
+    bmap_secs = bmap_length % 60
+    bmap_circles = bmap_metadata["count_normal"]
+    bmap_sliders = bmap_metadata["count_slider"]
+    bmap_orig_diff_details = [bmap_metadata["diff_size"],
+                              bmap_metadata["diff_approach"],
+                              bmap_metadata["diff_overall"],
+                              bmap_metadata["diff_drain"]]
+
+    mods_text = "+" + "".join(mods) if len(mods) > 0 else ""
+    mods_int = enumerate_mods(mods)
+
+    download_unavailable = int(bmap_metadata["download_unavailable"])
+    video_available = int(bmap_metadata["video"])
+
+    pp_ss, pp_99, pp_98, pp_95 = calculate_pp_of_map(bmap_data, mods_int)
+    bmap_info = bmap_info_from_oppai(bmap_data, mods_int)
+    bmap_stars = bmap_info["stars"]
+    max_combo = bmap_info["max_combo"]
+    bmap_modded_diff_details = [bmap_info["cs"], bmap_info["ar"], bmap_info["od"], bmap_info["hp"]]
+
+    cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
+    title_url = f"https://osu.ppy.sh/beatmapsets/{bmap_setid}#osu/{bmap_id}"
+    author_text = f"{bmap_artist} - {bmap_title} by {bmap_creator}"
+    title_text = f"[{bmap_diff}] {mods_text} {bmap_stars:.2f}:star:"
+    beatconnect_link = f"https://beatconnect.io/b/{bmap_setid}/"
+    bancho_link = f"https://osu.ppy.sh/beatmapsets/{bmap_setid}/download"
+    bloodcat_link = f"https://bloodcat.com/osu/s/{bmap_setid}"
+    no_vid_text_beatconnect = ""
+    no_vid_text_bancho = ""
+    if video_available == 1:
+        no_vid_text_bancho = f"([No-vid]({bancho_link}?novideo=1))"
+        no_vid_text_beatconnect = f"([No-vid]({beatconnect_link}?novideo=1))"
+    if not download_unavailable == 0:
+        download_text = f"**Download:** ~~Bancho~~ | [Bloodcat]({bloodcat_link}) | [BeatConnect]({beatconnect_link})"
+    else:
+        download_text = f"**Download:** [Bancho]({bancho_link}) {no_vid_text_bancho} | [Bloodcat]({bloodcat_link}) " \
+                        f"| [BeatConnect]({beatconnect_link}) {no_vid_text_beatconnect}"
+
+    diff_texts = []
+    for orig, modded in zip(bmap_orig_diff_details, bmap_modded_diff_details):
+        orig = float(orig)
+        if not orig == modded:
+            diff_texts.append(f"{orig} ({modded:.1f})")
+        else:
+            diff_texts.append(f"{orig}")
+    diff_details_text = f"**▸CS:** {diff_texts[0]} **▸AR:** {diff_texts[1]} **▸OD:** {diff_texts[2]} **▸HP:** {diff_texts[3]}"
+    pp_fields = [{"name": f"**95%**", "value": f"**{pp_95:.2f}pp**"},
+                 {"name": f"**99%**", "value": f"**{pp_99:.2f}pp**"},
+                 {"name": f"**100%**", "value": f"**{pp_ss:.2f}pp**"}]
+    desc_text = f"<:total_length:680709852988833802> **{bmap_mins}:{bmap_secs:02d}**" \
+                f" <:bpm:680709843060916292> **{bmap_bpm} bpm**" \
+                f"  <:count_circles:680712754273058817> **{bmap_circles}** " \
+                f" <:count_sliders:680712747012325409> **{bmap_sliders}**\n" \
+                f"{download_text}\n" \
+                f"{diff_details_text} \n"
+    fields = {"cover_url": cover_url,
+              "author_text": author_text,
+              "desc_text": desc_text,
+              "title_text": title_text,
+              "title_url": title_url,
+              "pp_fields": pp_fields}
+    return fields
 
 
 def get_user_scores_on_bmap(player_name, bmap_id):
@@ -602,7 +725,9 @@ def add_embed_description_on_compare(scores, offset, bmp):
         player_combo = score["maxcombo"]
         mods = score["enabled_mods"]
         _, mods_text = get_mods(mods)
-        diff_rate, max_combo = bmap_info_from_oppai(bmp, score["enabled_mods"])
+        bmap_info = bmap_info_from_oppai(bmp, score["enabled_mods"])
+        diff_rate = bmap_info["stars"]
+        max_combo = bmap_info["max_combo"]
         count300 = score["count300"]
         count100 = score["count100"]
         count50 = score["count50"]
@@ -610,7 +735,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
         player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
-        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, countmiss, mods, player_combo)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods, player_combo)
         try:
             player_pp = float(score["pp"])
         except:
@@ -701,7 +826,9 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     mods = play_data["enabled_mods"]
     max_combo = bmap_data["max_combo"]
 
-    diff_rating, max_combo = bmap_info_from_oppai(bmp, mods)
+    bmap_info = bmap_info_from_oppai(bmp, mods)
+    diff_rating = bmap_info["stars"]
+    max_combo = bmap_info["max_combo"]
 
     text_fill = (255, 255, 255, 225)
     score_fill = (255, 255, 255, 195)
@@ -730,7 +857,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
 
     mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
-    pp_raw, pp_fc, pp_95, pp_ss = calculate_pp(bmp, count100, count50, count_miss, mods, play_combo)
+    pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo)
 
     acc = get_acc(count300, count100, count50, count_miss)
 
@@ -806,7 +933,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
         images = make_recent_gif(final_cover, pp_text, show_pp_if_fc_text)
 
         final_cover.save("recent.gif", save_all=True, append_images=images, optimize=False,
-               duration=100, loop=0)
+                         duration=100, loop=0)
         return final_cover, diff_rating, max_combo, True
     else:
         return final_cover, diff_rating, max_combo, False
@@ -828,9 +955,9 @@ def make_recent_gif(final_cover, pp_text, fc_pp_text_bool):
         pp_text_fill = colors[i]
         w, h = draw.textsize(pp_text, font_36)
         if fc_pp_text_bool:
-            draw.text((890-w, 245 - h - 35), pp_text, fill=pp_text_fill, font=font_36)
+            draw.text((890 - w, 245 - h - 35), pp_text, fill=pp_text_fill, font=font_36)
         else:
-            draw.text((890-w, 240 - h), pp_text, fill=pp_text_fill, font=font_36)
+            draw.text((890 - w, 240 - h), pp_text, fill=pp_text_fill, font=font_36)
 
         images.append(im)
 

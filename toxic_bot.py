@@ -1,10 +1,8 @@
 import asyncio
 import logging
 import math
-import os
 import subprocess
 import sys
-import argparse
 import discord
 from discord.ext import commands
 
@@ -62,6 +60,7 @@ def add_single_page(ctx, show_data, begin, fixed_fields):
                           icon_url=fixed_fields["avatar_url"])
 
     return embed2
+
 
 async def add_pages(ctx, msg, data, fixed_fields):
     max_index = len(data)
@@ -170,6 +169,7 @@ async def set_prefix(ctx, arg):
 
 
 @client.command(name='prefix')
+@commands.has_permissions(administrator=True)
 async def prefix(ctx, arg1, arg2=None):
     if arg1 == "set":
         if arg2 is not None:
@@ -194,40 +194,78 @@ async def on_command_error(ctx, error):
         return
 
 
+async def check_args_for_map(ctx, args):
+    channel_id = str(ctx.message.channel.id)
+    bmap_id = get_value_from_dbase(channel_id, "recent")
+
+    return_dict = {"bmap": bmap_id, "mods": []}
+
+    if len(args) == 0:
+        if bmap_id == -1:
+            await ctx.send(f"İstediğin beatmapi bulamadım 😔")
+            return None
+
+    elif len(args) > 2:
+        await ctx.send(f"Garip bir şey istedin anlamadım 😔 `{ctx.message.content}` ne demek?\n"
+                       f"Usage: `*cmd <map_id> <mods>`")
+        return None
+
+    elif len(args) == 1:
+        if args[0].startswith("http"):
+            bmap_id = args[0].split("/")[-1]
+            return_dict["bmap"] = bmap_id
+        else:
+            try:
+                bmap_id = int(args[0])
+                return_dict["bmap"] = bmap_id
+            except:
+                requested_mods = check_and_return_mods(args[0])
+                return_dict["mods"] = requested_mods
+
+    elif len(args) == 2:
+        if args[0].startswith("http"):
+            bmap_id = args[0].split("/")[-1]
+            mods = check_and_return_mods(args[1])
+            return_dict["bmap"] = bmap_id
+            return_dict["mods"] = mods
+        else:
+            bmap_id = int(args[0])
+            mods = check_and_return_mods(args[1])
+            return_dict["bmap"] = bmap_id
+            return_dict["mods"] = mods
+
+    put_recent_on_file(bmap_id, channel_id)
+    return return_dict
+
+
 @client.command(name='map')
 async def map(ctx, *args):
     logger.info(
         f"Map called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
-    channel_id = str(ctx.message.channel.id)
-    bmap_id = get_value_from_dbase(channel_id, "recent")
-    if bmap_id == -1:
-        await ctx.send(f"İstediğin beatmapi bulamadım 😔")
-        return
-    requested_mods = ""
-    if len(args) > 1:
-        await ctx.send(f"Garip bir şey istedin anlamadım 😔\n`{ctx.message.content}` ne demek?")
-        return
-    elif len(args) == 1:
-        if args[0].startswith("http"):
-            bmap_id = args[0]
-            await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
-            return
-        else:
-            try:
-                bmap_id = int(args[0])
-                await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
-                return
-            except:
-                requested_mods = check_and_return_mods(args[0])
-                if isinstance(requested_mods, list):
-                    mods_text = "".join(requested_mods)
-                    await ctx.send(
-                        f"`{bmap_id}` id'li mapin `{mods_text}` modlarını istedin ama bu özellik henüz yok 😔")
-                else:
-                    await ctx.send(f"`{args[0]}` gibi bir şey istedin ama ne istediğini çıkaramadım 😔")
-            return
 
-    await ctx.send(f"`{bmap_id}` id'li mapin detayını istedin ama bu özellik henüz yok 😔")
+    args = await check_args_for_map(ctx, args)
+
+    if args is None:
+        await ctx.send("Usage: `*map <map_link> <mods>`")
+        return
+
+    bmap_id = args["bmap"]
+    mods = args["mods"]
+
+    bmap_data = beatmap_from_cache_or_web(bmap_id)
+    bmap_metadata = get_bmap_data(bmap_id, mods)
+    if bmap_data is None:
+        await ctx.send("Böyle bir beatmap yok")
+        return
+
+    embed_fields = show_bmap_details(bmap_metadata, bmap_data, mods)
+    embed = discord.Embed(title=embed_fields["title_text"], description=embed_fields["desc_text"], url=embed_fields["title_url"])
+    embed.set_author(name=embed_fields["author_text"])
+    embed.set_image(url=embed_fields["cover_url"])
+    for field in embed_fields["pp_fields"]:
+        embed.add_field(name=field["name"], value=field["value"], inline=True)
+
+    await ctx.send(embed=embed)
     return
 
 
