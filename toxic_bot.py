@@ -448,12 +448,15 @@ async def show_top_scores(ctx, *args):
         scores_data = get_user_best_v2(user_id)
         desc_text = add_embed_description_on_osutop(scores_data[:5])
         player_country = scores_data[0]["user"]["country_code"]
+        player_country_rank = user_data['pp_country_rank']
+        player_global_rank = user_data['pp_rank']
         author_icon_url = f"https://osu.ppy.sh/images/flags/{player_country}.png"
         embed = discord.Embed(description=desc_text, color=ctx.author.color)
         embed.set_thumbnail(url=scores_data[0]['user']['avatar_url'])
-        embed.set_author(name=f"Top osu! standard plays for {user_data['username']}",
-                         url=f"https://osu.ppy.sh/users/{user_data['user_id']}",
-                         icon_url=author_icon_url)
+        embed.set_author(
+            name=f"Top osu! standard plays for {user_data['username']}\n (#{player_global_rank}) - {player_country} #{player_country_rank}",
+            url=f"https://osu.ppy.sh/users/{user_data['user_id']}",
+            icon_url=author_icon_url)
         await ctx.send(embed=embed)
         return
 
