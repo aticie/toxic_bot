@@ -1253,9 +1253,6 @@ def draw_level_bar(level, draw):
 def get_osu_user_web_profile(osu_username):
     r = requests.get(f"https://osu.ppy.sh/users/{osu_username}")
 
-    with open("response.html", "w", encoding="utf-8") as f:
-        f.write(r.text)
-
     soup = BeautifulSoup(r.text, 'html.parser')
     json_user = soup.find(id="json-user").string
     json_achievements = soup.find(id="json-achievements").string
