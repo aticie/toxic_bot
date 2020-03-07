@@ -418,6 +418,9 @@ async def show_osu_profile(ctx, *args):
     author_id = ctx.message.author.id
     if len(args) == 0:
         osu_username = get_value_from_dbase(author_id, "username")
+        if osu_username == -1:
+            await ctx.send("Önce profilini linklemelisin: `*link <osu_username>`")
+            return
         args = (osu_username,)
 
     for osu_username in args:
