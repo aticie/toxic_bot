@@ -1090,7 +1090,8 @@ async def draw_user_profile(user_data, achievements_data, ctx):
 
     assets, medals = get_and_save_user_assets(user_data, achievements_data)
 
-    ch = 180  # Wanted cover height
+    num_badges = min(len(user_data["badges"]), 5)
+    ch = 250 if num_badges > 0 else 180  # Wanted cover height
     cover = assets[0].convert("RGBA")  # cover image
     cover = Image.eval(cover, lambda x: x / 2)
     cover_color = dominant_color(cover)  # Get dominant color of cover
@@ -1106,7 +1107,6 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     cover = cover.filter(ImageFilter.GaussianBlur(3))
 
     # Paste cover onto blank banner
-    num_badges = min(len(user_data["badges"]), 5)
     banner_size = (400, 250) if num_badges > 0 else (400, 180)
     cover_color = tuple(cover_color)
     banner = Image.new("RGBA", banner_size, cover_color)
