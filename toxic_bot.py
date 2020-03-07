@@ -409,6 +409,43 @@ async def recent_best(ctx, *args):
         await ctx.send(embed=embed, file=discord.File('recent.gif'))
 
 
+@client.command(name='osu')
+async def show_osu_profile(ctx, *args):
+    logger.info(
+        f"Osu profile request called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
+        f"*{ctx.invoked_with} {' '.join(args)} for {ctx.author.display_name}")
+
+    author_id = ctx.message.author.id
+    if len(args) == 0:
+        osu_username = get_value_from_dbase(author_id, "username")
+        args = (osu_username,)
+
+    for osu_username in args:
+        real_uname = get_osu_user_data(osu_username)
+        if real_uname is None:
+            await ctx.send(f"`{osu_username}` bulunamadı... :pensive:")
+            return
+        real_username = real_uname["username"]
+        user_data, achievements_data = get_osu_user_web_profile(real_username)
+        osu_username = user_data["username"]
+        user_id = user_data["id"]
+        image = await draw_user_profile(user_data, achievements_data, ctx)
+
+        img_to_send = io.BytesIO()
+        image.save(img_to_send, format='PNG')
+        img_to_send.seek(0)
+        file = discord.File(img_to_send, "cover.png")
+        embed = discord.Embed(color=ctx.message.author.color)
+        embed.set_author(name=f"osu! profile for {osu_username}",
+                         url=f"https://osu.ppy.sh/users/{user_id}",
+                         icon_url=f"https://a.ppy.sh/{user_id}")
+
+        embed.set_image(url="attachment://cover.png")
+        await ctx.send(embed=embed, file=file)
+
+    return
+
+
 @client.command(name='osutop', aliases=['top'])
 async def show_top_scores(ctx, *args):
     logger.info(

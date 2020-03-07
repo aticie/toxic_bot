@@ -2,7 +2,9 @@ import colorsys
 import io
 import json
 import os
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
+from bs4 import BeautifulSoup
 
 import cv2
 import numpy as np
@@ -161,7 +163,8 @@ def add_image_by_alpha(im1, im2, pos):
     return im3
 
 
-def dominant_color(img):
+def dominant_color(image):
+    img = image.convert("RGB")
     data = np.reshape(img, (-1, 3))
     data = np.float32(data)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
@@ -764,7 +767,7 @@ def add_embed_description_on_osutop(scores):
         player_score = score["score"]
         player_combo = score["max_combo"]
         mods = score["mods"]
-        player_mods = "+"+"".join(mods) if len(mods) > 0 else ""
+        player_mods = "+" + "".join(mods) if len(mods) > 0 else ""
         mods_int = enumerate_mods(mods)
 
         bmp = beatmap_from_cache_or_web(score["beatmap"]["id"])
@@ -1010,6 +1013,256 @@ def make_recent_gif(final_cover, pp_text, fc_pp_text_bool):
         images.append(im)
 
     return images
+
+
+def get_and_save_user_assets(user_data, achievement_data):
+    assets_folder = "Assets"
+    medals_folder = "Medals"
+
+    os.makedirs(assets_folder, exist_ok=True)
+    os.makedirs(medals_folder, exist_ok=True)
+
+    asset_urls = []
+
+    asset_urls.append(user_data["cover_url"])
+    asset_urls.append(user_data["avatar_url"])
+    country_code = user_data["country"]["code"]
+    asset_urls.append(f"https://osu.ppy.sh/images/flags/{country_code}.png")
+    asset_urls.append("a/Global.png")
+    asset_urls.append("sdf/target.png")
+    asset_urls.append("sdf/play_count.png")
+    asset_urls.append("sdf/chronometer.png")
+
+    badges = user_data["badges"]
+    if len(badges) > 5:
+        badges = badges[:5]
+    for badge in badges:
+        asset_urls.append(badge["image_url"])
+    assets = []
+    # Get cover, avatar and country flag
+    for asset_url in asset_urls:
+
+        filename = asset_url.split("/")[-1]
+        filename = filename.replace("?", "")
+        asset_path = os.path.join(assets_folder, filename)
+
+        # If it exists in cache, read from cache
+        if os.path.exists(asset_path):
+            assets.append(Image.open(asset_path))
+
+        # Else, save to cache
+        else:
+            asset_rsp = requests.get(asset_url)
+            asset_img_data = asset_rsp.content
+            asset = Image.open(io.BytesIO(asset_img_data))
+            asset.save(asset_path)
+            assets.append(asset)
+
+    medals = []
+    achievements = user_data["user_achievements"][:3]
+    for achi in achievements:
+        achievement_id = achi["achievement_id"]
+        for ach in achievement_data:
+            if ach["id"] == achievement_id:
+                medal_url = ach["icon_url"]
+                break
+        filename = medal_url.split("/")[-1]
+        filename = filename.replace("?", "")
+        medal_path = os.path.join(medals_folder, filename)
+
+        # If it exists in cache, read from cache
+        if os.path.exists(medal_path):
+            medals.append(Image.open(medal_path))
+
+        # Else, save to cache
+        else:
+            medal_rsp = requests.get(medal_url)
+            medal_img_data = medal_rsp.content
+            medal = Image.open(io.BytesIO(medal_img_data))
+            medal.save(medal_path)
+            medals.append(medal)
+
+    return assets, medals
+
+
+async def draw_user_profile(user_data, achievements_data, ctx):
+    now = time.time()
+
+    assets, medals = get_and_save_user_assets(user_data, achievements_data)
+
+    ch = 180  # Wanted cover height
+    cover = assets[0].convert("RGBA")  # cover image
+    cover = Image.eval(cover, lambda x: x / 2)
+    cover_color = dominant_color(cover)  # Get dominant color of cover
+    w, h = cover.size
+    rr = ch / h  # Resize Ratio
+    rw = int(rr * w)  # Resized Width
+    cover = cover.resize((rw, ch))  # Resized cover
+    # Crop the image from the middle
+    left = (rw - 400) // 2
+    right = (rw + 400) // 2
+    cover = cover.crop((left, 0, right, ch))
+    # Blur the cover
+    cover = cover.filter(ImageFilter.GaussianBlur(3))
+
+    # Paste cover onto blank banner
+    num_badges = min(len(user_data["badges"]), 5)
+    banner_size = (400, 250) if num_badges > 0 else (400, 180)
+    cover_color = tuple(cover_color)
+    banner = Image.new("RGBA", banner_size, cover_color)
+    banner.alpha_composite(cover)
+
+    # Paste avatar onto banner
+    avatar = assets[1]
+    # Resize avatar
+    avatar_size = (70, 70)
+    avatar = avatar.resize(avatar_size)
+    avatar_mask = Image.new("RGBA", avatar_size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(avatar_mask)
+    d.ellipse((0, 0, avatar_size[0], avatar_size[1]), fill=(255, 255, 255, 255))
+    del d
+
+    # Create avatar rim
+    ac = ctx.message.author.color
+    avatar_rim_size = banner_size
+    avatar_rim = Image.new("RGBA", avatar_rim_size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(avatar_rim)
+    d.ellipse((25, 25, 175, 175), outline=(ac.r, ac.g, ac.b, 255), width=6)
+    del d
+    avatar_rim = avatar_rim.resize((banner_size[0] // 2, banner_size[1] // 2))
+
+    # Paste avatar and rim to banner
+    banner.paste(avatar, box=(15, 15), mask=avatar_mask)
+    banner.alpha_composite(avatar_rim)
+
+    # Paste flag to banner
+    flag = assets[2]
+    flag = flag.resize((30, 20))
+    banner.alpha_composite(flag, (100, 70))
+    # Paste global icon to banner
+
+    glob = assets[3]
+    glob = glob.resize((20, 20))
+    banner.alpha_composite(glob, (100, 45))
+
+    statistics = user_data["statistics"]
+    global_rank = statistics["rank"]["global"]
+    country_rank = statistics["rank"]["country"]
+    player_pp = statistics["pp"]
+    # Print user data onto banner
+    d = ImageDraw.Draw(banner)
+    opensans_font = ImageFont.truetype(os.path.join("Fonts", "OpenSans-Bold.ttf"), 18)
+    opensans_font_24 = ImageFont.truetype(os.path.join("Fonts", "OpenSans-Bold.ttf"), 28)
+    opensans_font_tiny = ImageFont.truetype(os.path.join("Fonts", "OpenSans-Bold.ttf"), 12)
+    # Print country and global ranks and pp
+    d.text((98, 8), f"{player_pp}pp", font=opensans_font_24)
+    d.text((136, 66), f"#{country_rank}", font=opensans_font)
+    d.text((136, 42), f"#{global_rank}", font=opensans_font)
+
+    # Print player details
+    player_title = user_data["title"]
+    player_name = user_data["username"]
+    player_color = user_data["profile_colour"]
+    d.text((15, 94), player_name, font=opensans_font_24)
+    if player_title is not None:
+        d.text((15, 124), player_title, font=opensans_font, fill=player_color)
+
+    level_current, level_progress = draw_level_bar(statistics["level"], d)
+
+    d.text((12 + level_progress * 1.5, 164), f"{level_progress}%", font=opensans_font_tiny)
+    d.text((180, 146), f"{level_current}", font=opensans_font)
+
+    hit_acc = statistics["hit_accuracy"]
+    play_count = statistics["play_count"]
+    play_time = statistics["play_time"]
+
+    hit_accuracy = assets[4]
+    hit_accuracy = hit_accuracy.resize((20, 20)).convert("RGBA")
+    banner.alpha_composite(hit_accuracy, (365, 20))
+
+    play_count_img = assets[5]
+    play_count_img = play_count_img.resize((20, 20)).convert("RGBA")
+    banner.alpha_composite(play_count_img, (365, 50))
+
+    play_time_img = assets[6]
+    play_time_img = play_time_img.resize((20, 20)).convert("RGBA")
+    banner.alpha_composite(play_time_img, (365, 80))
+
+    play_count = make_readable_score(play_count)
+    play_time = dayhoursec_time(play_time)
+
+    hit_acc_w, _ = d.textsize(f"{hit_acc:.2f}%", font=opensans_font)
+    play_count_w, _ = d.textsize(f"{play_count}", font=opensans_font)
+    play_time_w, _ = d.textsize(f"{play_time}", font=opensans_font)
+    d.text((banner_size[0] - hit_acc_w - 45, 17), f"{hit_acc:.2f}%", font=opensans_font)
+    d.text((banner_size[0] - play_count_w - 45, 47), f"{play_count}", font=opensans_font)
+    d.text((banner_size[0] - play_time_w - 45, 77), f"{play_time}", font=opensans_font)
+
+    # Draw medals
+    medal_space = 6
+    medal_size = 45
+    for i, medal in enumerate(medals):
+        medal = medal.resize((medal_size, medal_size)).convert("RGBA")
+        banner.alpha_composite(medal, (
+        235 + (i) * (medal_size + medal_space), 120))
+
+    # Draw badges
+    badge_space = 10
+    num_assets = 7
+    for badge_num in range(num_assets, num_badges + num_assets):
+        badge = assets[badge_num]
+        badge_width, badge_height = badge.size
+        banner.paste(badge, (
+        badge_width * (badge_num - num_assets) + (badge_num - num_assets + 1) * badge_space, banner_size[1] - 55))
+
+    print(f"draw_user_profile took: {time.time() - now}")
+
+    return banner
+
+
+def dayhoursec_time(given_time):
+    d = timedelta(seconds=given_time)
+    hours, rem = divmod(d.seconds, 3600)
+    mins, _ = divmod(rem, 60)
+    return f"{d.days}d {hours}h {mins}m"
+
+
+def draw_level_bar(level, draw):
+    current = level["current"]
+    progress = level["progress"]
+    unfilled_color = (98, 0, 40)
+    filled_color = (255, 102, 171)
+    if progress == 0:
+        draw.chord((18, 155, 26, 163), 90, 270, fill=unfilled_color)
+    else:
+        draw.chord((18, 155, 26, 163), 90, 270, fill=filled_color)
+
+    bar_length = 145
+    progress_length = (progress / 99) * bar_length
+    print(progress)
+    print(progress_length)
+    draw.rectangle((23, 155, 23 + progress_length, 163), fill=filled_color)
+    if not progress == 99:
+        draw.rectangle((23 + progress_length, 155, 23 + bar_length, 163), fill=unfilled_color)
+
+    draw.chord((bar_length + 18, 155, bar_length + 26, 163), 270, 90, fill=unfilled_color)
+
+    return current, progress
+
+
+def get_osu_user_web_profile(osu_username):
+    r = requests.get(f"https://osu.ppy.sh/users/{osu_username}")
+
+    with open("response.html", "w", encoding="utf-8") as f:
+        f.write(r.text)
+
+    soup = BeautifulSoup(r.text, 'html.parser')
+    json_user = soup.find(id="json-user").string
+    json_achievements = soup.find(id="json-achievements").string
+    user_dict = json.loads(json_user)
+    achievements_dict = json.loads(json_achievements)
+
+    return user_dict, achievements_dict
 
 
 def get_embed_text_from_beatmap(bmap_data):
