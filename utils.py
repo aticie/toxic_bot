@@ -1165,7 +1165,7 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     player_color = user_data["profile_colour"]
     d.text((15, 94), player_name, font=opensans_font_24)
     if player_title is not None:
-        d.text((15, 124), player_title, font=opensans_font, fill=player_color)
+        d.text((15, 127), player_title, font=opensans_font, fill=player_color)
 
     level_current, level_progress = draw_level_bar(statistics["level"], d)
 
