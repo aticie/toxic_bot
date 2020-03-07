@@ -1215,8 +1215,6 @@ async def draw_user_profile(user_data, achievements_data, ctx):
         banner.paste(badge, (
         badge_width * (badge_num - num_assets) + (badge_num - num_assets + 1) * badge_space, banner_size[1] - 55))
 
-    print(f"draw_user_profile took: {time.time() - now}")
-
     return banner
 
 
@@ -1239,8 +1237,6 @@ def draw_level_bar(level, draw):
 
     bar_length = 145
     progress_length = (progress / 99) * bar_length
-    print(progress)
-    print(progress_length)
     draw.rectangle((23, 155, 23 + progress_length, 163), fill=filled_color)
     if not progress == 99:
         draw.rectangle((23 + progress_length, 155, 23 + bar_length, 163), fill=unfilled_color)
