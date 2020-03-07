@@ -1116,7 +1116,7 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     avatar = assets[1]
     # Resize avatar
     avatar_size = (70, 70)
-    avatar = avatar.resize(avatar_size)
+    avatar = avatar.resize(avatar_size).convert("RGBA")
     avatar_mask = Image.new("RGBA", avatar_size, (0, 0, 0, 0))
     d = ImageDraw.Draw(avatar_mask)
     d.ellipse((0, 0, avatar_size[0], avatar_size[1]), fill=(255, 255, 255, 255))
@@ -1137,7 +1137,7 @@ async def draw_user_profile(user_data, achievements_data, ctx):
 
     # Paste flag to banner
     flag = assets[2]
-    flag = flag.resize((30, 20))
+    flag = flag.resize((30, 20)).convert("RGBA")
     banner.alpha_composite(flag, (100, 70))
     # Paste global icon to banner
 
