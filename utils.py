@@ -12,7 +12,7 @@ import requests
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 from oppai import *
 
-USER_LINK_FILE = os.path.join("Users", "link_list.json")
+USER_LINK_FILE = os.path.join("Users", "user_properties.json")
 RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
 

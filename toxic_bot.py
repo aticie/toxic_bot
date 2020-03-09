@@ -37,6 +37,79 @@ def parse_args():
     return
 
 
+@client.command(name='update_user_list')
+@commands.is_owner()
+async def update_users(ctx):
+    await ctx.send("Updating users")
+    with open(os.path.join("Users", "link_list.json"), "r") as f:
+        user_links = json.load(f)
+
+    for k, v in user_links.items():
+        user_links[k] = {"osu_username": v, "tournament_ping_preference": False, "osu_rank": 0, "osu_badges": 0,
+                         "last_updated": datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}
+
+        with open(os.path.join("Users", "user_properties.json"), "w") as f:
+            json.dump(user_links, f)
+
+        os.remove(os.path.join("Users", "link_list.json"))
+        return
+
+'''
+@client.event
+async def on_message(message):
+    await client.process_commands(message)
+    channel_id = message.channel.id
+    if not (channel_id == 602863040756580361 or channel_id == 676411865592758272):
+        print(f"Channel id is not OK")
+        return
+    lines = message.content.lower().splitlines()
+    bws = False
+    rank_range_found = False
+    for line in lines:
+        idx = line.find("rank range:")
+        if not idx == -1:
+            rank_range = line[idx + 11:]
+            if "(bws)" in rank_range:
+                rank_range = rank_range.replace("(bws)", "")
+                bws = True
+
+            max_rank = int(rank_range.split("-")[0].replace(",", ""))
+            min_rank = int(rank_range.split("-")[1].replace(",", ""))
+            rank_range_found = True
+            break
+    if not rank_range_found:
+        return
+    with open(os.path.join("Users", "user_properties.json"), "r") as f:
+        users_dict = json.load(f)
+
+    guild_members = [str(member.id) for member in message.guild.members]
+    ping_list = []
+    for user, properties in users_dict.items():
+        if properties["tournament_ping_preference"]:
+            if user in guild_members:
+                user_rank = int(properties["osu_rank"])
+                user_badges = int(properties["osu_badges"])
+                if bws:
+                    user_rank = pow(user_rank, (pow(0.9887, (user_badges * (user_badges + 1) / 2))))
+
+                if min_rank > user_rank > max_rank:
+                    ping_list.append(user)
+
+    if len(ping_list) == 0:
+        return
+
+    ping_text = ""
+    for user in ping_list:
+        ping_text += f" {client.get_user(int(user)).mention}"
+
+    ping_text += " Bu turnuvaya katılabiliyorsun"
+    ping_text += "uz!" if len(ping_list) > 1 else "!"
+
+    await message.channel.send(ping_text)
+
+    return
+
+
 @client.command(name='restart')
 @commands.is_owner()
 async def _restart_bot(ctx):
@@ -271,6 +344,48 @@ async def map(ctx, *args):
     return
 
 
+@client.command(name='tourney_ping_on')
+@commands.cooldown(1, 10000, commands.BucketType.user)
+async def tourney_ping_on(ctx):
+    user_discord_id = ctx.author.id
+    user_properties = get_value_from_dbase(user_discord_id, "username")
+    osu_username = user_properties["osu_username"]
+    user_data, _ = get_osu_user_web_profile(osu_username)
+
+    with open(os.path.join("Users", "user_properties.json"), "r") as f:
+        user_dict = json.load(f)
+
+    user_discord_id = str(user_discord_id)
+    user_dict[user_discord_id]["tournament_ping_preference"] = True
+    user_dict[user_discord_id]["osu_rank"] = user_data["statistics"]["rank"]["global"]
+    user_dict[user_discord_id]["osu_badges"] = len(user_data["badges"])
+    user_dict[user_discord_id]["last_updated"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+
+    with open(os.path.join("Users", "user_properties.json"), "w") as f:
+        json.dump(user_dict, f)
+
+    await ctx.send(f"{ctx.author.mention} artık sana uygun turnuva paylaşıldığında haberin olacak!")
+    return
+
+
+@client.command(name='tourney_ping_off')
+async def tourney_ping_off(ctx):
+    user_discord_id = ctx.author.id
+    user_properties = get_value_from_dbase(user_discord_id, "username")
+    osu_username = user_properties["osu_username"]
+    with open(os.path.join("Users", "user_properties.json"), "r") as f:
+        user_dict = json.load(f)
+
+    user_discord_id = str(user_discord_id)
+    user_dict[user_discord_id]["tournament_ping_preference"] = False
+
+    with open(os.path.join("Users", "user_properties.json"), "w") as f:
+        json.dump(user_dict, f)
+
+    await ctx.send(f"`{osu_username}` turnuva için pinglenmeyecek... :pensive:")
+    return
+
+
 @client.command(name='osulink', aliases=['link'])
 async def link(ctx, *args):
     logger.info(f"Link called from: {ctx.message.guild.name} - {ctx.message.channel.name}")
@@ -294,7 +409,8 @@ async def recent(ctx, *args):
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
 
@@ -321,7 +437,8 @@ async def recent(ctx, *args):
     bmap_data = get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
+    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes,
+                                                                  bmap_data,
                                                                   cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
@@ -356,7 +473,8 @@ async def recent_best(ctx, *args):
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
 
@@ -384,7 +502,8 @@ async def recent_best(ctx, *args):
     bmap_data = get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes, bmap_data,
+    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes,
+                                                                  bmap_data,
                                                                   cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
@@ -417,7 +536,8 @@ async def show_osu_profile(ctx, *args):
 
     author_id = ctx.message.author.id
     if len(args) == 0:
-        osu_username = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
         if osu_username == -1:
             await ctx.send("Önce profilini linklemelisin: `*link <osu_username>`")
             return
@@ -459,7 +579,8 @@ async def show_top_scores(ctx, *args):
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
     else:
         if "-p" in args:
             cutoff = args.index("-p")
@@ -470,7 +591,8 @@ async def show_top_scores(ctx, *args):
                 osu_username = " ".join(args)
             else:
                 author_id = ctx.message.author.id
-                osu_username = get_value_from_dbase(author_id, "username")
+                user_properties = get_value_from_dbase(author_id, "username")
+                osu_username = user_properties["osu_username"]
         else:
             osu_username = " ".join(args)
 
@@ -527,7 +649,8 @@ async def show_top_scores(ctx, *args):
         footer_text = parse_recent_play(score_data)
 
         embed = discord.Embed(title=title_text, color=ctx.message.author.color, url=bmap_url)
-        embed.set_author(name=f"Top #{which_best} play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
+        embed.set_author(name=f"Top #{which_best} play of {osu_username}",
+                         url=f"https://osu.ppy.sh/users/{player_id}",
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
         if not is_gif:
@@ -557,7 +680,8 @@ async def compare(ctx, *args):
 
     if len(args) == 0:
         author_id = ctx.message.author.id
-        osu_username = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
 
@@ -672,7 +796,8 @@ async def show_map_score(ctx, *args):
     try:
         player_name = args[1]
     except:
-        player_name = get_value_from_dbase(author_id, "username")
+        user_properties = get_value_from_dbase(author_id, "username")
+        osu_username = user_properties["osu_username"]
 
     if player_name == -1:
         await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -747,7 +872,7 @@ async def show_country(ctx, *args):
                 requested_mods = ""
             except:
                 await ctx.send(f"Beatmap linkiyle ilgili bi sıkıntı var: {args[0]}\n\
-                    Usage: `*country https://osu.ppy.sh/beatmapsets/1090677#osu/2284572`")
+                Usage: `*country https://osu.ppy.sh/beatmapsets/1090677#osu/2284572`")
                 return
         elif len(args) == 1:
             try:
@@ -791,5 +916,5 @@ async def show_country(ctx, *args):
                     "bmap_url": bmap_url}
     await add_pages(ctx, msg, country_data, fixed_fields)
 
-
+'''
 client.run(TOKEN)
