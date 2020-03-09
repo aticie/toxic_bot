@@ -60,7 +60,6 @@ async def on_message(message):
     await client.process_commands(message)
     channel_id = message.channel.id
     if not (channel_id == 602863040756580361 or channel_id == 676411865592758272):
-        print(f"Channel id is not OK")
         return
     lines = message.content.lower().splitlines()
     bws = False
