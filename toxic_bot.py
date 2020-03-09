@@ -352,6 +352,9 @@ async def map(ctx, *args):
 async def tourney_ping_on(ctx):
     user_discord_id = ctx.author.id
     user_properties = get_value_from_dbase(user_discord_id, "username")
+    if user_properties == -1:
+        ctx.command.reset_cooldown(ctx)
+        await ctx.send("Önce profilini linkle: `*link <username>`")
     osu_username = user_properties["osu_username"]
     user_data, _ = get_osu_user_web_profile(osu_username)
 
