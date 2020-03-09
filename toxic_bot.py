@@ -36,7 +36,7 @@ client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 def parse_args():
     return
 
-'''
+
 @client.command(name='update_user_list')
 @commands.is_owner()
 async def update_users(ctx):
@@ -48,11 +48,11 @@ async def update_users(ctx):
         user_links[k] = {"osu_username": v, "tournament_ping_preference": False, "osu_rank": 0, "osu_badges": 0,
                          "last_updated": datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}
 
-        with open(os.path.join("Users", "user_properties.json"), "w") as f:
-            json.dump(user_links, f)
+    with open(os.path.join("Users", "user_properties.json"), "w") as f:
+        json.dump(user_links, f)
 
-        os.remove(os.path.join("Users", "link_list.json"))
-        return
+    os.remove(os.path.join("Users", "link_list.json"))
+    return
 '''
 
 @client.event
@@ -918,5 +918,5 @@ async def show_country(ctx, *args):
                     "cover_url": cover_url,
                     "bmap_url": bmap_url}
     await add_pages(ctx, msg, country_data, fixed_fields)
-
+'''
 client.run(TOKEN)
