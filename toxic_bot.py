@@ -53,7 +53,7 @@ async def update_users(ctx):
 
     os.remove(os.path.join("Users", "link_list.json"))
     return
-'''
+
 
 @client.event
 async def on_message(message):
@@ -918,5 +918,5 @@ async def show_country(ctx, *args):
                     "cover_url": cover_url,
                     "bmap_url": bmap_url}
     await add_pages(ctx, msg, country_data, fixed_fields)
-'''
+
 client.run(TOKEN)
