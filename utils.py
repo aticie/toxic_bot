@@ -343,7 +343,7 @@ def link_user_on_file(user_osu_nickname, user_discord_id):
         users_dict = json.load(link_list)
 
     if user_discord_id in users_dict:
-        if user_osu_nickname == users_dict[user_discord_id]:
+        if user_osu_nickname == users_dict[user_discord_id]["osu_username"]:
             return -1
 
     users_dict[user_discord_id] = user_osu_nickname
