@@ -36,7 +36,7 @@ client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 def parse_args():
     return
 
-
+'''
 @client.command(name='update_user_list')
 @commands.is_owner()
 async def update_users(ctx):
@@ -53,8 +53,8 @@ async def update_users(ctx):
 
         os.remove(os.path.join("Users", "link_list.json"))
         return
-
 '''
+
 @client.event
 async def on_message(message):
     await client.process_commands(message)
@@ -916,5 +916,4 @@ async def show_country(ctx, *args):
                     "bmap_url": bmap_url}
     await add_pages(ctx, msg, country_data, fixed_fields)
 
-'''
 client.run(TOKEN)
