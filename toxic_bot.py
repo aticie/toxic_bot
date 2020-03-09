@@ -68,12 +68,16 @@ async def on_message(message):
         idx = line.find("rank range:")
         if not idx == -1:
             rank_range = line[idx + 11:]
+
             if "(bws)" in rank_range:
                 rank_range = rank_range.replace("(bws)", "")
                 bws = True
-
-            max_rank = int(rank_range.split("-")[0].replace(",", ""))
-            min_rank = int(rank_range.split("-")[1].replace(",", ""))
+            if "no rank limit" in rank_range:
+                max_rank = 1
+                min_rank = 10000000
+            else:
+                max_rank = int(rank_range.split("-")[0].replace(",", ""))
+                min_rank = int(rank_range.split("-")[1].replace(",", ""))
             rank_range_found = True
             break
     if not rank_range_found:
