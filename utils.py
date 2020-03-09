@@ -346,7 +346,9 @@ def link_user_on_file(user_osu_nickname, user_discord_id):
         if user_osu_nickname == users_dict[user_discord_id]["osu_username"]:
             return -1
 
-    users_dict[user_discord_id] = user_osu_nickname
+    users_dict[user_discord_id] = {"osu_username": user_osu_nickname, "tournament_ping_preference": False,
+                                   "osu_rank": 0, "osu_badges": 0,
+                                   "last_updated": datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}
     with open(USER_LINK_FILE, "w") as link_list:
         json.dump(users_dict, link_list)
     return 1
@@ -1204,7 +1206,7 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     for i, medal in enumerate(medals):
         medal = medal.resize((medal_size, medal_size)).convert("RGBA")
         banner.alpha_composite(medal, (
-        235 + (i) * (medal_size + medal_space), 120))
+            235 + (i) * (medal_size + medal_space), 120))
 
     # Draw badges
     badge_space = 10
@@ -1213,7 +1215,7 @@ async def draw_user_profile(user_data, achievements_data, ctx):
         badge = assets[badge_num]
         badge_width, badge_height = badge.size
         banner.paste(badge, (
-        badge_width * (badge_num - num_assets) + (badge_num - num_assets + 1) * badge_space, banner_size[1] - 55))
+            badge_width * (badge_num - num_assets) + (badge_num - num_assets + 1) * badge_space, banner_size[1] - 55))
 
     return banner
 
