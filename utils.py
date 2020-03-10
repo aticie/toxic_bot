@@ -927,6 +927,7 @@ def draw_user_play(player_name, play_data, background_image, bmap_data, from_cac
     d.text((15, badge_height - 25 - score_text_h), f"{score}", fill=score_fill, font=font_26)
 
     rank_color_dict = {"F": (250, 22, 63, 30),
+                       "D": (250, 122, 36, 30),
                        "C": (139, 47, 151, 30),
                        "B": (70, 179, 230, 30),
                        "A": (148, 252, 19, 30),
