@@ -102,7 +102,7 @@ async def on_message(message):
                     try:
                         rank_text = multiline.split("|")[1]
                         max_rank = rank_text.split("-")[0].replace(",", "")
-                        
+
                         if "(bws)" in max_rank:
                             max_rank = max_rank.replace("(bws)", "")
 
@@ -139,7 +139,7 @@ async def on_message(message):
     ping_text += " Bu turnuvaya katılabiliyorsun"
     ping_text += "uz!" if len(ping_list) > 1 else "!"
 
-    ping_text += " Sana uygun turnuvalardan haberdar olmak için profilini linkleyip `*tourney_ping_on` yazman yeterli."
+    ping_text += " Sana uygun turnuvalardan haberdar olmak için profilini linkleyip `*tourney_ping_on` yazman yeterli.\n Ayrılmak için `*tourney_ping_off`"
 
     await message.channel.send(ping_text)
 
