@@ -389,7 +389,6 @@ async def tourney_ping_on(ctx):
         await ctx.send("Önce profilini linkle: `*link <username>`")
     osu_username = user_properties["osu_username"]
     user_data, _ = get_osu_user_web_profile(osu_username)
-    print(user_data)
 
     with open(os.path.join("Users", "user_properties.json"), "r") as f:
         user_dict = json.load(f)
