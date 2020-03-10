@@ -62,8 +62,6 @@ async def on_message(message):
     if not (channel_id == 602863040756580361 or channel_id == 676411865592758272):
         return
     lines = message.content.lower().splitlines()
-    bws = False
-    multi_line = False
     rank_range_found = False
     ping_list = []
 
@@ -72,7 +70,24 @@ async def on_message(message):
 
     guild_members = [str(member.id) for member in message.guild.members]
 
-    def populate_ping_list(max_range, min_range, users_dict, guild_members, ping_list):
+    def populate_ping_list(users_dict, guild_members, ping_list, rank_text):
+        bws = False
+        if "(bws)" in rank_text:
+            rank_text = rank_text.replace("(bws)", "")
+            bws = True
+
+        if "(" in rank_text:
+            open_parentheses = rank_text.find("(")
+            rank_text = rank_text[:open_parentheses]
+
+        rank_text = rank_text.rstrip()
+        if rank_text.endswith("+"):
+            max_rank = int(rank_text.replace("+", "").replace(",", ""))
+            min_rank = 10000000
+        else:
+            max_rank = int(rank_text.split("-")[0].replace(",", ""))
+            min_rank = int(rank_text.split("-")[1].replace(",", ""))
+        print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
         for user, properties in users_dict.items():
             if properties["tournament_ping_preference"]:
                 if user in guild_members:
@@ -91,38 +106,20 @@ async def on_message(message):
         if not idx == -1:
             rank_range = line[idx + 11:]
 
-            if "(bws)" in rank_range:
-                rank_range = rank_range.replace("(bws)", "")
-                bws = True
             if "no rank limit" in rank_range:
-                max_rank = 1
-                min_rank = 10000000
-            elif len(rank_range) < 3:
+                rank_range = "1 - 10000000"
+
+            if len(rank_range) < 3:
                 for multiline in lines[line_no+1:]:
                     try:
                         rank_text = multiline.split("|")[1]
-                        max_rank = rank_text.split("-")[0].replace(",", "")
-
-                        if "(bws)" in max_rank:
-                            max_rank = max_rank.replace("(bws)", "")
-
-                        if max_rank.endswith("+"):
-                            max_rank = int(max_rank.replace("+",""))
-                            min_rank = 10000000
-                        else:
-                            max_rank = int(max_rank)
-                            min_rank = int(rank_text.split("-")[1].replace(",", ""))
-                        print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
-                        ping_list = populate_ping_list(max_rank, min_rank, users_dict, guild_members, ping_list)
+                        ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_text)
                     except:
                         break
                     rank_range_found = True
                 break
             else:
-                max_rank = int(rank_range.split("-")[0].replace(",", ""))
-                min_rank = int(rank_range.split("-")[1].replace(",", ""))
-                print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
-                ping_list = populate_ping_list(max_rank, min_rank, users_dict, guild_members, ping_list)
+                ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_range)
                 rank_range_found = True
                 break
 
@@ -241,6 +238,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
 @client.event
 async def on_ready():
     global prefix_file, prefixes
+    print("Bot starting!!")
     if os.path.exists(prefix_file):
         with open(prefix_file, "r") as f:
             prefixes = json.load(f)
