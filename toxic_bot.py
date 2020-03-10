@@ -63,8 +63,30 @@ async def on_message(message):
         return
     lines = message.content.lower().splitlines()
     bws = False
+    multi_line = False
     rank_range_found = False
-    for line in lines:
+    ping_list = []
+
+    with open(os.path.join("Users", "user_properties.json"), "r") as f:
+        users_dict = json.load(f)
+
+    guild_members = [str(member.id) for member in message.guild.members]
+
+    def populate_ping_list(max_range, min_range, users_dict, guild_members, ping_list):
+        for user, properties in users_dict.items():
+            if properties["tournament_ping_preference"]:
+                if user in guild_members:
+                    user_rank = int(properties["osu_rank"])
+                    user_badges = int(properties["osu_badges"])
+                    if bws:
+                        user_rank = pow(user_rank, (pow(0.9887, (user_badges * (user_badges + 1) / 2))))
+
+                    if min_rank > user_rank > max_rank:
+                        ping_list.append(user)
+
+        return ping_list
+
+    for line_no, line in enumerate(lines):
         idx = line.find("rank range:")
         if not idx == -1:
             rank_range = line[idx + 11:]
@@ -75,28 +97,37 @@ async def on_message(message):
             if "no rank limit" in rank_range:
                 max_rank = 1
                 min_rank = 10000000
+            elif len(rank_range) < 3:
+                for multiline in lines[line_no+1:]:
+                    try:
+                        rank_text = multiline.split("|")[1]
+                        max_rank = rank_text.split("-")[0].replace(",", "")
+                        
+                        if "(bws)" in max_rank:
+                            max_rank = max_rank.replace("(bws)", "")
+
+                        if max_rank.endswith("+"):
+                            max_rank = int(max_rank.replace("+",""))
+                            min_rank = 10000000
+                        else:
+                            max_rank = int(max_rank)
+                            min_rank = int(rank_text.split("-")[1].replace(",", ""))
+                        print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
+                        ping_list = populate_ping_list(max_rank, min_rank, users_dict, guild_members, ping_list)
+                    except:
+                        break
+                    rank_range_found = True
+                break
             else:
                 max_rank = int(rank_range.split("-")[0].replace(",", ""))
                 min_rank = int(rank_range.split("-")[1].replace(",", ""))
-            rank_range_found = True
-            break
+                print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
+                ping_list = populate_ping_list(max_rank, min_rank, users_dict, guild_members, ping_list)
+                rank_range_found = True
+                break
+
     if not rank_range_found:
         return
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        users_dict = json.load(f)
-
-    guild_members = [str(member.id) for member in message.guild.members]
-    ping_list = []
-    for user, properties in users_dict.items():
-        if properties["tournament_ping_preference"]:
-            if user in guild_members:
-                user_rank = int(properties["osu_rank"])
-                user_badges = int(properties["osu_badges"])
-                if bws:
-                    user_rank = pow(user_rank, (pow(0.9887, (user_badges * (user_badges + 1) / 2))))
-
-                if min_rank > user_rank > max_rank:
-                    ping_list.append(user)
 
     if len(ping_list) == 0:
         return
@@ -107,6 +138,8 @@ async def on_message(message):
 
     ping_text += " Bu turnuvaya katılabiliyorsun"
     ping_text += "uz!" if len(ping_list) > 1 else "!"
+
+    ping_text += " Sana uygun turnuvalardan haberdar olmak için profilini linkleyip `*tourney_ping_on` yazman yeterli."
 
     await message.channel.send(ping_text)
 
@@ -348,20 +381,21 @@ async def map(ctx, *args):
 
 
 @client.command(name='tourney_ping_on')
-@commands.cooldown(1, 10000, commands.BucketType.user)
+@commands.cooldown(1, 30, commands.BucketType.user)
 async def tourney_ping_on(ctx):
     user_discord_id = ctx.author.id
+    user_discord_id = str(user_discord_id)
     user_properties = get_value_from_dbase(user_discord_id, "username")
     if user_properties == -1:
         ctx.command.reset_cooldown(ctx)
         await ctx.send("Önce profilini linkle: `*link <username>`")
     osu_username = user_properties["osu_username"]
     user_data, _ = get_osu_user_web_profile(osu_username)
+    print(user_data)
 
     with open(os.path.join("Users", "user_properties.json"), "r") as f:
         user_dict = json.load(f)
 
-    user_discord_id = str(user_discord_id)
     user_dict[user_discord_id]["tournament_ping_preference"] = True
     user_dict[user_discord_id]["osu_rank"] = user_data["statistics"]["rank"]["global"]
     user_dict[user_discord_id]["osu_badges"] = len(user_data["badges"])
@@ -377,12 +411,12 @@ async def tourney_ping_on(ctx):
 @client.command(name='tourney_ping_off')
 async def tourney_ping_off(ctx):
     user_discord_id = ctx.author.id
+    user_discord_id = str(user_discord_id)
     user_properties = get_value_from_dbase(user_discord_id, "username")
     osu_username = user_properties["osu_username"]
     with open(os.path.join("Users", "user_properties.json"), "r") as f:
         user_dict = json.load(f)
 
-    user_discord_id = str(user_discord_id)
     user_dict[user_discord_id]["tournament_ping_preference"] = False
 
     with open(os.path.join("Users", "user_properties.json"), "w") as f:

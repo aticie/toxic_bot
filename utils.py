@@ -1252,8 +1252,11 @@ def get_osu_user_web_profile(osu_username):
     r = requests.get(f"https://osu.ppy.sh/users/{osu_username}")
 
     soup = BeautifulSoup(r.text, 'html.parser')
-    json_user = soup.find(id="json-user").string
-    json_achievements = soup.find(id="json-achievements").string
+    try:
+        json_user = soup.find(id="json-user").string
+        json_achievements = soup.find(id="json-achievements").string
+    except:
+        raise Exception(f"`{osu_username}` adlı kişi osu!'da kayıtlı değil.")
     user_dict = json.loads(json_user)
     achievements_dict = json.loads(json_achievements)
 
