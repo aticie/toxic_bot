@@ -482,7 +482,9 @@ def enumerate_mods(mods_array):
                 "DT": 64,
                 "HT": 256,
                 "NC": 576,
-                "FL": 1024}
+                "FL": 1024,
+                "SO": 4096,
+                "PF": 16384}
 
     for mod in mods_array:
         mod_num += mod_enum[mod]
