@@ -110,7 +110,7 @@ async def on_message(message):
                 rank_range = "1 - 10000000"
 
             if len(rank_range) < 3:
-                for multiline in lines[line_no+1:]:
+                for multiline in lines[line_no + 1:]:
                     try:
                         rank_text = multiline.split("|")[1]
                         ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_text)
@@ -151,7 +151,7 @@ async def _restart_bot(ctx):
     subprocess.call([sys.executable, "toxic_bot.py"])
 
 
-def add_single_page(ctx, show_data, begin, fixed_fields):
+def add_single_page(ctx, show_data, begin, fixed_fields, bmp):
     if fixed_fields["callsign"] == "country":
         desc_text = add_embed_fields_on_country(show_data, begin)
         embed2 = discord.Embed(title=fixed_fields["title_text"], description=desc_text,
@@ -159,22 +159,30 @@ def add_single_page(ctx, show_data, begin, fixed_fields):
         embed2.set_image(url=fixed_fields["cover_url"])
         embed2.set_author(name=fixed_fields["author_name"], icon_url=fixed_fields["author_icon_url"])
     elif fixed_fields["callsign"] == "compare":
-        embed2 = discord.Embed(title=fixed_fields["title_text"], description=fixed_fields["desc_text"],
+        desc_text = add_embed_description_on_compare(show_data, begin, bmp)
+        embed2 = discord.Embed(title=fixed_fields["title_text"], description=desc_text,
                                color=ctx.author.color, url=fixed_fields["bmap_url"])
         embed2.set_image(url=fixed_fields["cover_url"])
         embed2.set_author(name=fixed_fields["author_name"], url=fixed_fields["player_url"],
                           icon_url=fixed_fields["avatar_url"])
+    elif fixed_fields["callsign"] == "osutop":
+        desc_text = add_embed_description_on_osutop(show_data, begin)
+        embed2 = discord.Embed(description=desc_text, color=ctx.author.color)
+        embed2.set_thumbnail(url=fixed_fields["avatar_url"])
+        embed2.set_author(
+            name=fixed_fields["author_name"],
+            url=fixed_fields["player_url"],
+            icon_url=fixed_fields["author_icon_url"])
 
     return embed2
 
 
-async def add_pages(ctx, msg, data, fixed_fields):
+async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
     max_index = len(data)
     num = 1
 
-    if fixed_fields["callsign"] == "country":
-        result_per_page = 5  # Show 5 results per page
-    else:
+    result_per_page = 5  # Show 5 results per page
+    if fixed_fields["callsign"] == "compare":
         result_per_page = 3  # Show 3 results per page
 
     max_page = math.ceil(max_index / result_per_page)
@@ -212,7 +220,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
             end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
-            embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
+            embed2 = add_single_page(ctx, show_data, begin, fixed_fields, bmp)
             embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
@@ -228,7 +236,7 @@ async def add_pages(ctx, msg, data, fixed_fields):
             end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
-            embed2 = add_single_page(ctx, show_data, begin, fixed_fields)
+            embed2 = add_single_page(ctx, show_data, begin, fixed_fields, bmp)
             embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
@@ -508,6 +516,18 @@ async def recent_best(ctx, *args):
         f"Recent Best called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
         f" {ctx.invoked_with}{' '.join(args)} for {ctx.author.display_name}")
 
+    multi_mode = False
+    args = list(args)
+    which_best = ctx.invoked_with[2:]
+    if which_best == "":
+        if "-l" in args:
+            multi_mode = True
+            args.remove("-l")
+        else:
+            which_best = 1
+    else:
+        which_best = int(which_best)
+
     if len(args) == 0:
         author_id = ctx.message.author.id
         user_properties = get_value_from_dbase(author_id, "username")
@@ -519,16 +539,49 @@ async def recent_best(ctx, *args):
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
-    which_best = ctx.invoked_with[2:]
-    if which_best == "":
-        which_best = 1
-    else:
-        which_best = int(which_best)
-
-    recent_play = get_recent_best(osu_username, date_index=which_best)
-
     user_data = get_osu_user_data(username=osu_username)
     osu_username = user_data["username"]
+    user_id = user_data["user_id"]
+    if multi_mode:
+        recent_play = get_user_best_v2(user_id)
+        recent_play = np.array(recent_play)
+        indexes = sort_plays_by_date(recent_play, v2=True)
+        recent_play = recent_play[indexes]
+    else:
+        recent_play = get_recent_best(osu_username, date_index=which_best)
+
+    if multi_mode:
+        max_pages = len(recent_play) // 5 + 1
+
+        desc_text = add_embed_description_on_osutop(recent_play[:5], 0)
+        player_country = recent_play[0]["user"]["country_code"]
+        player_country_rank = user_data['pp_country_rank']
+        player_global_rank = user_data['pp_rank']
+        avatar_url = recent_play[0]['user']['avatar_url']
+        author_icon_url = f"https://osu.ppy.sh/images/flags/{player_country}.png"
+        player_url = f"https://osu.ppy.sh/users/{user_data['user_id']}"
+        author_name = f"Most recent best osu! standard plays for {user_data['username']}\n" \
+                      f" (#{player_global_rank}) - {player_country} #{player_country_rank}"
+        embed = discord.Embed(description=desc_text, color=ctx.author.color)
+        embed.set_thumbnail(url=avatar_url)
+        embed.set_author(
+            name=author_name,
+            url=player_url,
+            icon_url=author_icon_url)
+        fixed_fields = {"callsign": "osutop",
+                        "title_text": None,
+                        "desc_text": desc_text,
+                        "author_name": author_name,
+                        "author_icon_url": author_icon_url,
+                        "player_url": player_url,
+                        "avatar_url": avatar_url,
+                        "cover_url": None,
+                        "bmap_url": None}
+        msg = await ctx.send(embed=embed)
+        await add_pages(ctx, msg, recent_play, fixed_fields)
+
+        return
+
     bmap_id = recent_play['beatmap_id']
 
     channel_id = str(ctx.message.channel.id)  # Discord channel id
@@ -645,18 +698,31 @@ async def show_top_scores(ctx, *args):
     if not single_mode:
         user_id = user_data["user_id"]
         scores_data = get_user_best_v2(user_id)
-        desc_text = add_embed_description_on_osutop(scores_data[:5])
+        desc_text = add_embed_description_on_osutop(scores_data[:5], 0)
         player_country = scores_data[0]["user"]["country_code"]
         player_country_rank = user_data['pp_country_rank']
         player_global_rank = user_data['pp_rank']
+        author_name = f"Top osu! standard plays for {user_data['username']}\n (#{player_global_rank}) - {player_country} #{player_country_rank}"
+        player_url = f"https://osu.ppy.sh/users/{user_data['user_id']}"
         author_icon_url = f"https://osu.ppy.sh/images/flags/{player_country}.png"
+        avatar_url = scores_data[0]['user']['avatar_url']
         embed = discord.Embed(description=desc_text, color=ctx.author.color)
-        embed.set_thumbnail(url=scores_data[0]['user']['avatar_url'])
+        embed.set_thumbnail(url=avatar_url)
         embed.set_author(
-            name=f"Top osu! standard plays for {user_data['username']}\n (#{player_global_rank}) - {player_country} #{player_country_rank}",
-            url=f"https://osu.ppy.sh/users/{user_data['user_id']}",
+            name=author_name,
+            url=player_url,
             icon_url=author_icon_url)
-        await ctx.send(embed=embed)
+        fixed_fields = {"callsign": "osutop",
+                        "title_text": None,
+                        "desc_text": desc_text,
+                        "author_name": author_name,
+                        "author_icon_url": author_icon_url,
+                        "player_url": player_url,
+                        "avatar_url": avatar_url,
+                        "cover_url": None,
+                        "bmap_url": None}
+        msg = await ctx.send(embed=embed)
+        await add_pages(ctx, msg, scores_data, fixed_fields)
         return
 
     if single_mode:
@@ -802,7 +868,7 @@ async def compare(ctx, *args):
 
     msg = await ctx.send(embed=embed)
 
-    await add_pages(ctx, msg, scores_data, fixed_fields)
+    await add_pages(ctx, msg, scores_data, fixed_fields, bmp)
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
@@ -952,5 +1018,6 @@ async def show_country(ctx, *args):
                     "cover_url": cover_url,
                     "bmap_url": bmap_url}
     await add_pages(ctx, msg, country_data, fixed_fields)
+
 
 client.run(TOKEN)

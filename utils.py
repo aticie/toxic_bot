@@ -396,6 +396,21 @@ def get_value_from_dbase(discord_id, callsign):
         return -1
 
 
+def sort_plays_by_date(plays, v2=False):
+    index_array = []
+
+    for play in plays:
+        if v2:
+            date = datetime.strptime(play["created_at"], '%Y-%m-%dT%H:%M:%S+00:00')
+        else:
+            date = datetime.strptime(play["date"], '%Y-%m-%d %H:%M:%S')
+        index_array.append(date)
+
+    indexes = np.argsort(index_array)[::-1]
+
+    return indexes
+
+
 def get_recent_best(user_id, date_index=None, best_index=None):
     rs_api_url = 'https://osu.ppy.sh/api/get_user_best'
     params = {'k': OSU_API,  # Api key
@@ -410,12 +425,8 @@ def get_recent_best(user_id, date_index=None, best_index=None):
 
     if date_index is not None:
 
-        index_array = []
-        for play in plays:
-            date = datetime.strptime(play["date"], '%Y-%m-%d %H:%M:%S')
-            index_array.append(date)
+        indexes = sort_plays_by_date(plays)
 
-        indexes = np.argsort(index_array)[::-1]
         play_index = indexes[date_index - 1]
 
         recent_data = plays[play_index]
@@ -765,7 +776,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
     return desc_text
 
 
-def add_embed_description_on_osutop(scores):
+def add_embed_description_on_osutop(scores, offset):
     desc_text = ""
     for play_rank, score in enumerate(scores):
         player_score = score["score"]
@@ -798,7 +809,7 @@ def add_embed_description_on_osutop(scores):
             pp_text = f"({pp_fc:.2f}pp for FC)"
         else:
             pp_text = ""
-        desc_text += f"**{play_rank + 1}. [{bmap_title} [{bmap_version}]]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]**\n" \
+        desc_text += f"**{play_rank + offset + 1}. [{bmap_title} [{bmap_version}]]({bmap_url}) {player_mods} [{diff_rate:.2f}⭐]**\n" \
                      f"**▸{player_rank} Rank** ▸**{player_pp:.2f}pp** {pp_text} ▸{player_acc:.2f}%\n" \
                      f"▸{player_score} ▸ x{player_combo}/{max_combo} ▸ [{count300}/{count100}/{count50}/{countmiss}]\n" \
                      f"▸Score set {timeago} ago\n"
