@@ -33,6 +33,11 @@ def get_prefix(client, message):
 client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 
 
+@client.event
+async def on_guild_join(guild):
+    await set_prefix(guild, "*")
+    return
+
 def parse_args():
     return
 
@@ -269,26 +274,27 @@ async def get_prefix(ctx):
     await ctx.send(f"Server prefix is: {prefixes[str(ctx.message.guild.id)]}")
 
 
-async def set_prefix(ctx, arg):
+async def set_prefix(guild, arg):
     global prefix_file, prefixes
 
     with open(prefix_file, "r") as f:
         prefixes = json.load(f)
 
-    prefixes[str(ctx.message.guild.id)] = arg
+    prefixes[str(guild.id)] = arg
 
     with open(prefix_file, "w") as f:
         json.dump(prefixes, f, indent=2)
 
-    await ctx.send(f"Changed prefix to: {prefixes[str(ctx.message.guild.id)]}")
-
+    return
 
 @client.command(name='prefix')
 @commands.has_permissions(administrator=True)
 async def prefix(ctx, arg1, arg2=None):
+    guild = ctx.message.guild
     if arg1 == "set":
         if arg2 is not None:
-            await set_prefix(ctx, arg2)
+            await set_prefix(guild, arg2)
+            await ctx.send(f"Changed prefix to: {arg2}")
         else:
             await ctx.send("Prefix'i ne yapmalıyım yazmamışsın 😔")
     elif arg1 == "get":
@@ -455,13 +461,13 @@ async def recent(ctx, *args):
     if len(args) == 0:
         author_id = ctx.message.author.id
         user_properties = get_value_from_dbase(author_id, "username")
-        osu_username = user_properties["osu_username"]
+        try:
+            osu_username = user_properties["osu_username"]
+        except:
+            await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
+            return
     else:
         osu_username = " ".join(args)
-
-    if osu_username == -1:
-        await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
-        return
 
     recent_play = get_recent(osu_username)
 
