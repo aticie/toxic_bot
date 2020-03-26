@@ -2,7 +2,6 @@ Avatars
 Beatmaps
 Covers
 Flags
-Fonts
 Mods
 Ranks
 Users
@@ -12,3 +11,14 @@ ex_user_data.json
 recent.png
 utils.pyc
 __pycache__
+/Fonts/Helvetica Neu Bold.ttf
+/Fonts/HelveticaNeue.ttf
+/Fonts/HelveticaNeue BlackCond.ttf
+/Fonts/HelveticaNeue Light.ttf
+/Fonts/HelveticaNeue Medium.ttf
+/Fonts/HelveticaNeue Thin.ttf
+/Fonts/HelveticaNeueBd.ttf
+/Fonts/HelveticaNeueHv.ttf
+/Fonts/HelveticaNeueIt.ttf
+/Fonts/HelveticaNeueLt.ttf
+/Fonts/HelveticaNeueMed.ttf
