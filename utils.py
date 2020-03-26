@@ -5,7 +5,8 @@ import os
 import time
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-
+import textwrap
+import random
 import cv2
 import numpy as np
 import requests
@@ -15,6 +16,93 @@ from oppai import *
 USER_LINK_FILE = os.path.join("Users", "user_properties.json")
 RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
 OSU_API = os.environ["OSU_API_KEY"]
+
+colors = ["229	43	80",
+          "255	191	0",
+          "153	102	204",
+          "251	206	177",
+          "127	255	212",
+          "0	127	255",
+          "137	207	240",
+          "245	245	220",
+          "0	0	0",
+          "0	0	255",
+          "0	149	182",
+          "138	43	226",
+          "222	93	131",
+          "205	127	50",
+          "150	75	0",
+          "128	0	32",
+          "112	41	99",
+          "150	0	24",
+          "222	49	99",
+          "0	123	167",
+          "247	231	206",
+          "127	255	0",
+          "123	63	0",
+          "0	71	171",
+          "111	78	55",
+          "184	115	51",
+          "255	127	80",
+          "220	20	60",
+          "0	255	255",
+          "237	201	175",
+          "125	249	255",
+          "80	200	120",
+          "0	255	63",
+          "255	215	0",
+          "128	128	128",
+          "0	255	0",
+          "63	255	0",
+          "75	0	130",
+          "255	255	240",
+          "0	168	107",
+          "41	171	135",
+          "181	126	220",
+          "255	247	0",
+          "200	162	200",
+          "191	255	0",
+          "255	0	255",
+          "255	0	175",
+          "128	0	0",
+          "224	176	255",
+          "0	0	128",
+          "204	119	34",
+          "128	128	0",
+          "255	102	0",
+          "255	69	0",
+          "218	112	214",
+          "255	229	180",
+          "209	226	49",
+          "204	204	255",
+          "28	57	187",
+          "253	108	158",
+          "142	69	133",
+          "0	49	83",
+          "204	136	153",
+          "128	0	128",
+          "227	11	92",
+          "0	0	0",
+          "585	199	21",
+          "255	0	127",
+          "224	17	95",
+          "250	128	114",
+          "146	0	10",
+          "15	82	186",
+          "255	36	0",
+          "192	192	192",
+          "112	128	144",
+          "167	252	0",
+          "0	255	127",
+          "210 180	140",
+          "72	60	50",
+          "0	128	128",
+          "64	224	208",
+          "63	0	255",
+          "127	0	255",
+          "64	130	109",
+          "255	255	255",
+          "255	255	0"]
 
 with open("mods.txt", "r") as mods_file:
     all_mods = mods_file.readlines()
@@ -629,6 +717,81 @@ def get_cover_image(bmap_setid):
     cover_img_data = cover_req.content
 
     return cover_img_data, False
+
+
+def draw_chat_lines(chat):
+    outline_margin = 10
+    margin_text_inbetween = 8
+    inline_margin = 5
+
+    regular_torus = ImageFont.truetype(os.path.join("Fonts", "TorusNotched-Regular.otf"), 24)
+    semibold_torus = ImageFont.truetype(os.path.join("Fonts", "TorusNotched-SemiBold.otf"), 24)
+
+    txt = Image.new('RGBA', (1, 1), (255, 255, 255, 0))
+    d = ImageDraw.Draw(txt)
+
+    bg_color = (33, 57, 65, 255)
+
+    unames = set([i['sender']['username'] for i in chat])
+    uname_colors = {uname: random.choice(colors).split("\t") for uname in unames}
+
+    uname_lengths = [
+        d.textsize("{}: ".format(x['sender']['username']) if x['is_action'] else "{} ".format(x['sender']['username']),
+                   font=semibold_torus)[0] for x in chat]
+    max_uname_ind = np.argmax(uname_lengths)
+    max_uname_width, max_uname_height = d.textsize(chat[max_uname_ind]['sender']['username'], font=semibold_torus)
+
+    max_content_width = max(
+        [d.textsize("{}".format(x['content'][:200]), font=regular_torus)[0] for x in chat])
+
+    timestamp = chat[-1]["timestamp"].split("T")[1].split("+")[0]
+    hour = str((int(timestamp[:2]) + 3) % 24)
+    hms = hour + timestamp[2:]
+    hms_width, hms_height = d.textsize("{} ".format(hms), regular_torus)
+
+    max_height = max([max_uname_height, hms_height])
+    max_width = max_uname_width + hms_width
+
+    height = outline_margin * 2 + len(chat) * (max_height + inline_margin)
+    width = (outline_margin + margin_text_inbetween)* 2 + max_uname_width + hms_width + max_content_width
+
+    del d
+
+    img = Image.new('RGB', (width, height), bg_color)
+    d = ImageDraw.Draw(img)
+
+    for i, item in enumerate(chat):
+        username = item["sender"]["username"]
+        timestamp = item["timestamp"].split("T")[1].split("+")[0]
+        hour = str((int(timestamp[:2]) + 3) % 24)
+        hms = hour + timestamp[2:]
+        color = (int(uname_colors[username][0]), int(uname_colors[username][1]), int(uname_colors[username][2]))
+        is_action = item["is_action"]
+        content = item["content"][:200]
+
+        h = outline_margin + i * (max_height + inline_margin)
+        d.text((outline_margin, h), f"{hms} ", fill=(255, 255, 255),
+               font=regular_torus)
+        d.text((margin_text_inbetween + outline_margin + hms_width, h),
+               f"{username}" if is_action else f"{username}:", fill=color, font=semibold_torus)
+        d.text((margin_text_inbetween*2 + outline_margin + hms_width + max_uname_width, h), f"{content}", fill=(255, 255, 255),
+               font=regular_torus)
+
+    del d
+    return img
+
+
+def get_turkish_chat(limit=10):
+    url = "https://osu.ppy.sh/community/chat/channels/1397/messages"
+    headers = {
+        'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
+        "Cookie": os.environ["COOKIE"],
+        'User-Agent': "PostmanRuntime/7.22.0"
+    }
+
+    chat = requests.get(url, headers=headers).json()
+
+    return chat[-limit:]
 
 
 def get_country_rankings_v2(bmap_id, mods):

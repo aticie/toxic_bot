@@ -38,7 +38,160 @@ async def on_guild_join(guild):
     await set_prefix(guild, "*")
     return
 
+
 def parse_args():
+    return
+
+
+@client.command(name='team')
+@commands.has_permissions(administrator=True)
+async def create_team(ctx, osu_user2, team_name):
+    """
+    :param ctx:
+    :param osu_user2: Komutu kullanan kişinin yanında turnuvaya katılacak olan 2. kişi
+    :param team_name: Takım ismi
+    :return: Verilen takım ismi ile takım oluşturur
+    """
+    db = read_db()
+
+    if len(team_name) > 16:
+        await ctx.send("Takım ismi 16 karakterden kısa olmalıdır.")
+        return
+
+    user2_discord_id = osu_user2[3:-1]
+    try:
+        user2_discord_id = int(user2_discord_id)
+    except:
+        await ctx.send(f"Kullanım: `?team @oyuncu takım_ismi`\n"
+                       f"Ex: `?team @heyronii asdasfazamaz`")
+
+    player_found = False
+    for user in db["users"]:
+        if user["discord_id"] == user2_discord_id:
+            player_found = True
+
+    if not player_found:
+        await ctx.send(f"{osu_user2} kayıt olanlar arasında bulunamadı.")
+    else:
+        new_team = {"name": team_name, "user1": ctx.author.id, "user2": user2_discord_id}
+        db["teams"].append(new_team)
+        await ctx.send(f"`{team_name}` başarıyla turnuvaya katıldı!")
+
+    write_db(db)
+    return
+
+
+@client.command(name='remove')
+@commands.has_permissions(administrator=True)
+async def remove_user(ctx):
+    """
+    :param ctx:
+    :return: Komutu kullanan kişiyi turnuvadan çıkarır
+    """
+    db = read_db()
+
+    removed = False
+
+    for user in db["users"]:
+        if user["discord_id"] == ctx.author.id:
+            uname = user["username"]
+            removed = True
+            await ctx.send(f"`{uname}` turnuvadan ayrıldı, tekrar görüşmek üzere.")
+            db["users"].remove(user)
+            break
+
+    for team in db["teams"]:
+        u1_discord = team["user1"]["discord_id"]
+        u2_discord = team["user2"]["discord_id"]
+
+        if u1_discord == ctx.author.id or u2_discord == ctx.author.id:
+            disband_team(team)
+
+    updated_db = read_db()
+    updated_db["users"] = db["users"]
+
+    if not removed:
+        await ctx.send(f"{ctx.author.mention} turnuvaya kayıtlı değilsin.")
+    else:
+        write_db(db)
+
+    return
+
+@client.command(name='register')
+@commands.has_permissions(administrator=True)
+async def register_tourney(ctx, osu_user1):
+    """
+    :param ctx:
+    :param osu_user1: Turnuvaya katılacak kişinin osu! nicki veya id'si
+    :return: Turnuvaya katılan kişileri listeye ekler
+    """
+    # if not ctx.message.channel.guild.id == 402213530599948299:
+    #    return
+
+    db = read_db()
+
+    for user in db["users"]:
+        uname = user["username"]
+        if user["discord_id"] == ctx.author.id:
+            await ctx.send(f"Sen zaten turnuvaya {uname} adıyla kayıtlısın. Kaydını silmek için: `?remove`")
+            return
+        if user["username"] == osu_user1 or str(user["id"]) == osu_user1:
+            await ctx.send(f"Turnuvaya {uname} adıyla kayıt olunmuş. Kaydını silmek için: `?remove`")
+            return
+
+    user1_info = get_user_info(osu_user1)
+
+    user1_info["discord_id"] = ctx.author.id
+    db["users"].append(user1_info)
+
+    write_db(db)
+
+    await ctx.send(f"`{osu_user1}` başarıyla turnuvaya katıldın! Devam edebilmek için bir takım kurman gerekiyor:\n"
+                   f"Kullanım: `?team @oyuncu takım_ismi`\n Ex. `?team @heyronii \"Yokediciler\"`")
+    return
+
+
+def get_user_info(username):
+    r = requests.get(f"https://osu.ppy.sh/users/{username}")
+    soup = BeautifulSoup(r.text, 'html.parser')
+    try:
+        json_user = soup.find(id="json-user").string
+    except:
+        raise Exception(f"`{username}` adlı kişiyi osu!'da bulamadım.")
+    user_dict = json.loads(json_user)
+
+    return user_dict
+
+
+def read_db():
+    tournament_db_file = "turnuva.json"
+
+    if not os.path.exists(tournament_db_file):
+        with open(tournament_db_file, "w", encoding='utf-8') as f:
+            json.dump({"teams": [], "users": []}, f)
+
+        return {"teams": [], "users": []}
+
+    with open(tournament_db_file, "r", encoding='utf-8') as f:
+        db = json.load(f)
+
+    return db
+
+
+def write_db(db):
+
+    tournament_db_file = "turnuva.json"
+
+    with open(tournament_db_file, "w", encoding='utf-8') as f:
+        json.dump(db, f, indent=2)
+
+    return
+
+
+def disband_team(team):
+    db = read_db()
+    db["teams"].remove(team)
+    write_db(db)
     return
 
 
@@ -57,6 +210,22 @@ async def update_users(ctx):
         json.dump(user_links, f)
 
     os.remove(os.path.join("Users", "link_list.json"))
+    return
+
+
+@client.command(aliases=['osutr', 'osuturkiye'])
+async def get_osutr_chat(ctx, lim=10):
+
+    if lim > 10:
+        lim = 10
+    chat = get_turkish_chat(lim)
+    image = draw_chat_lines(chat)
+    arr = io.BytesIO()
+    image.save(arr, format='PNG')
+    arr.seek(0)
+    file = discord.File(arr, 'chat.png')
+    await ctx.send(file=file)
+
     return
 
 
