@@ -5,7 +5,6 @@ import os
 import time
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
-import textwrap
 import random
 import cv2
 import numpy as np
@@ -94,7 +93,7 @@ colors = ["229	43	80",
           "112	128	144",
           "167	252	0",
           "0	255	127",
-          "210 180	140",
+          "210  180	140",
           "72	60	50",
           "0	128	128",
           "64	224	208",
@@ -533,11 +532,11 @@ def get_user_best_v2(user_id):
     rs_api_url = f"https://osu.ppy.sh/users/{user_id}/scores/best?"
     params = {'mode': 'osu',
               'limit': '100'}
-    header = {
-        'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-        "Cookie": os.environ["COOKIE"],
-        'User-Agent': "PostmanRuntime/7.22.0"
-    }
+    #header = {
+    #    'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
+    #    "Cookie": os.environ["COOKIE"],
+    #    'User-Agent': "PostmanRuntime/7.22.0"
+    #}
     req = requests.get(url=rs_api_url, params=params)
     plays = req.json()
     return plays

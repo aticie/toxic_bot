@@ -7,6 +7,13 @@ import discord
 from discord.ext import commands
 
 from utils import *
+import logging
+
+discord_logger = logging.getLogger('discord')
+discord_logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+discord_logger.addHandler(handler)
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 prefix_file = os.path.join("Users", "prefixes.json")
@@ -542,8 +549,8 @@ async def recent(ctx, *args):
         embed.set_image(url="attachment://recent.gif")
         await ctx.send(embed=embed, file=discord.File('recent.gif'))
 
-    pass
-
+    del recent_image
+    return
 
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
 async def recent_best(ctx, *args):
@@ -652,6 +659,9 @@ async def recent_best(ctx, *args):
         embed.set_image(url="attachment://recent.gif")
         await ctx.send(embed=embed, file=discord.File('recent.gif'))
 
+    del recent_image
+    return
+
 
 @client.command(name='osu')
 async def show_osu_profile(ctx, *args):
@@ -690,6 +700,8 @@ async def show_osu_profile(ctx, *args):
 
         embed.set_image(url="attachment://cover.png")
         await ctx.send(embed=embed, file=file)
+        del image
+        del img_to_send
 
     return
 
@@ -798,10 +810,9 @@ async def show_top_scores(ctx, *args):
         else:
             embed.set_image(url="attachment://recent.gif")
             await ctx.send(embed=embed, file=discord.File('recent.gif'))
+
+        del recent_image
         return
-    else:
-        user_id = user_data["user_id"]
-        score_data = get_user_best_v2(user_id=user_id)
 
 
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
@@ -877,6 +888,8 @@ async def compare(ctx, *args):
         else:
             embed.set_image(url="attachment://recent.gif")
             await ctx.send(embed=embed, file=discord.File('recent.gif'))
+
+        del recent_image
         return
 
     if len(scores_data) > 3:
