@@ -325,7 +325,18 @@ def beatmap_from_cache_or_web(beatmap_id):
     if os.path.exists(path):
         ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
     else:
-        r = requests.get(url)
+        try:
+            r = requests.get(url, timeout=1)
+            print(f"Downloading {beatmap_id} from osu!")
+        except requests.exceptions.Timeout as e:
+            print(f"Downloading {beatmap_id} FAILED FROM OSU! {e}")
+            print(f"Downloading {beatmap_id} from bloodcat!")
+            new_url = "https://bloodcat.com/osu/b/" + beatmap_id
+            r = requests.get(new_url, timeout=1)
+            if r.content.decode('utf-8') == "* File not found or inaccessable!":
+                raise Exception(f"Beatmap {beatmap_id} could not be downloaded...")
+
+
         with open(path, "w", encoding='utf-8') as f:
             f.write(r.content.decode("utf-8"))
 
