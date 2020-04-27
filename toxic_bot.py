@@ -92,6 +92,8 @@ async def get_osutr_chat(ctx, lim=10):
     arr.seek(0)
     file = discord.File(arr, 'chat.png')
     await ctx.send(file=file)
+    del image
+    del arr
 
     return
 
