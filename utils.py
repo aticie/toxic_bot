@@ -306,10 +306,10 @@ def image_from_cache_or_web(thing_id, url, folder):
     if os.path.exists(path):
         image = cv2.imread(path)
     else:
-        r = requests.get(url)
-        nparr = np.fromstring(r.content, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        cv2.imwrite(path, image)
+        with requests.get(url) as r:
+            nparr = np.fromstring(r.content, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            cv2.imwrite(path, image)
 
     return image
 
@@ -322,25 +322,25 @@ def beatmap_from_cache_or_web(beatmap_id):
     path = os.path.join("Beatmaps", beatmap_id + ".osu")
     ez = ezpp_new()
     ezpp_set_autocalc(ez, 1)
-    if os.path.exists(path):
-        ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
-    else:
+
+    if not os.path.exists(path):
         try:
-            r = requests.get(url, timeout=1)
-            print(f"Downloading {beatmap_id} from osu!")
+            with requests.get(url, timeout=1, stream=True) as r:
+                with open(path, "w", encoding='utf-8') as f:
+                    f.write(r.content.decode("utf-8"))
+                print(f"Downloading {beatmap_id} from osu!")
         except requests.exceptions.Timeout as e:
             print(f"Downloading {beatmap_id} FAILED FROM OSU! {e}")
             print(f"Downloading {beatmap_id} from bloodcat!")
             new_url = "https://bloodcat.com/osu/b/" + beatmap_id
-            r = requests.get(new_url, timeout=1)
-            if r.content.decode('utf-8') == "* File not found or inaccessable!":
-                raise Exception(f"Beatmap {beatmap_id} could not be downloaded...")
+            with requests.get(new_url, timeout=1, stream=True) as r:
+                if r.content.decode('utf-8') == "* File not found or inaccessable!":
+                    raise Exception(f"Beatmap {beatmap_id} could not be downloaded...")
+                else:
+                    with open(path, "w", encoding='utf-8') as f:
+                        f.write(r.content.decode("utf-8"))
 
-
-        with open(path, "w", encoding='utf-8') as f:
-            f.write(r.content.decode("utf-8"))
-
-        ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
+    ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
 
     return ez
 
@@ -515,11 +515,14 @@ def get_recent_best(user_id, date_index=None, best_index=None):
               'u': user_id,
               'limit': 100}
 
-    req = requests.get(url=rs_api_url, params=params)
-    if len(req.json()) == 0:
+    with requests.get(url=rs_api_url, params=params) as rsp:
+
+        the_response_json = rsp.json()
+
+    if len(the_response_json) == 0:
         return -1
 
-    plays = req.json()
+    plays = the_response_json
 
     if date_index is not None:
 
@@ -542,15 +545,18 @@ def get_recent_best(user_id, date_index=None, best_index=None):
 def get_user_best_v2(user_id):
     rs_api_url = f"https://osu.ppy.sh/users/{user_id}/scores/best?"
     params = {'mode': 'osu',
-              'limit': '100'}
-    #header = {
-    #    'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-    #    "Cookie": os.environ["COOKIE"],
-    #    'User-Agent': "PostmanRuntime/7.22.0"
-    #}
-    req = requests.get(url=rs_api_url, params=params)
-    plays = req.json()
-    return plays
+              'offset': '0',
+              'limit': '50'}
+    with requests.get(url=rs_api_url, params=params) as rsp:
+        plays = rsp.json()
+
+    params_next = {'mode': 'osu',
+              'offset': '50',
+              'limit': '50'}
+    with requests.get(url=rs_api_url, params=params_next) as rsp2:
+        plays_next = rsp2.json()
+
+    return plays, plays_next
 
 
 def get_recent(user_id, limit=1):
@@ -559,10 +565,12 @@ def get_recent(user_id, limit=1):
               'u': user_id,
               'limit': limit}
 
-    req = requests.get(url=rs_api_url, params=params)
-    if len(req.json()) == 0:
+    with requests.get(url=rs_api_url, params=params) as rsp:
+        the_response_json = rsp.json()
+
+    if len(the_response_json) == 0:
         return -1
-    recent_data = req.json()[0]
+    recent_data = the_response_json[0]
 
     return recent_data
 
@@ -572,8 +580,10 @@ def get_osu_user_data(username):
     user_params = {'k': OSU_API,  # Api key
                    'u': username
                    }
-    user_req = requests.get(url=user_api_url, params=user_params)
-    user_json = user_req.json()
+
+    with requests.get(url=user_api_url, params=user_params) as user_req:
+        user_json = user_req.json()
+
     if not len(user_json) == 1:
         return None
     user_data = user_json[0]
@@ -613,11 +623,11 @@ def get_bmap_data(bmap_id, mods=0, limit=1):
                    'mods': mods,
                    'limit': limit}
 
-    bmap_req = requests.get(url=bmap_api_url, params=bmap_params)
-    try:
-        bmap_data = bmap_req.json()[0]
-    except:
-        return None
+    with requests.get(url=bmap_api_url, params=bmap_params) as bmap_req:
+        try:
+            bmap_data = bmap_req.json()[0]
+        except:
+            return None
 
     return bmap_data
 
@@ -704,8 +714,8 @@ def get_user_scores_on_bmap(player_name, bmap_id):
                     'b': bmap_id,
                     'u': player_name}
 
-    score_req = requests.get(url=score_api_url, params=score_params)
-    score_data = score_req.json()
+    with requests.get(url=score_api_url, params=score_params) as score_req:
+        score_data = score_req.json()
 
     return score_data
 
@@ -723,8 +733,8 @@ def get_cover_image(bmap_setid):
         return cover_img_data, True
 
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
-    cover_req = requests.get(url=cover_url)
-    cover_img_data = cover_req.content
+    with requests.get(url=cover_url) as cover_req:
+        cover_img_data = cover_req.content
 
     return cover_img_data, False
 
@@ -799,7 +809,8 @@ def get_turkish_chat(limit=10):
         'User-Agent': "PostmanRuntime/7.22.0"
     }
 
-    chat = requests.get(url, headers=headers).json()
+    with requests.get(url, headers=headers) as chat_response:
+        chat = chat_response.json()
 
     return chat[-limit:]
 
@@ -818,9 +829,9 @@ def get_country_rankings_v2(bmap_id, mods):
         "mods[]": mods_array,
         "mode": "osu"
     }
-    countrycontent = requests.get(country_url, params=country_params, headers=header)
+    with requests.get(country_url, params=country_params, headers=header) as countrycontent:
+        decoded = json.loads(countrycontent.content.decode('ISO-8859-1'))
 
-    decoded = json.loads(countrycontent.content.decode('ISO-8859-1'))
     return decoded["scores"]
 
 
@@ -853,9 +864,8 @@ def get_country_rankings(bmap_data):
         'mods': 0
     }
 
-    r = requests.get(country_url, headers=headers, params=params)
-
-    country_data = parse_country_data(r.text)
+    with requests.get(country_url, headers=headers, params=params) as r:
+        country_data = parse_country_data(r.text)
 
     return country_data
 
@@ -1241,8 +1251,8 @@ def get_and_save_user_assets(user_data, achievement_data):
 
         # Else, save to cache
         else:
-            asset_rsp = requests.get(asset_url)
-            asset_img_data = asset_rsp.content
+            with requests.get(asset_url) as asset_rsp:
+                asset_img_data = asset_rsp.content
             asset = Image.open(io.BytesIO(asset_img_data))
             asset.save(asset_path)
             assets.append(asset)
@@ -1265,8 +1275,8 @@ def get_and_save_user_assets(user_data, achievement_data):
 
         # Else, save to cache
         else:
-            medal_rsp = requests.get(medal_url)
-            medal_img_data = medal_rsp.content
+            with requests.get(medal_url) as medal_rsp:
+                medal_img_data = medal_rsp.content
             medal = Image.open(io.BytesIO(medal_img_data))
             medal.save(medal_path)
             medals.append(medal)
@@ -1436,9 +1446,8 @@ def draw_level_bar(level, draw):
 
 
 def get_osu_user_web_profile(osu_username):
-    r = requests.get(f"https://osu.ppy.sh/users/{osu_username}")
-
-    soup = BeautifulSoup(r.text, 'html.parser')
+    with requests.get(f"https://osu.ppy.sh/users/{osu_username}") as r:
+        soup = BeautifulSoup(r.text, 'html.parser')
     try:
         json_user = soup.find(id="json-user").string
         json_achievements = soup.find(id="json-achievements").string
