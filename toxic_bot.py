@@ -1072,4 +1072,10 @@ async def show_country(ctx, *args):
     await add_pages(ctx, msg, country_data, fixed_fields)
 
 
-client.run(TOKEN)
+if __name__ == "__main__":
+    try:
+        import googleclouddebugger
+        googleclouddebugger.enable(module='toxic_bot', version='v1.0')
+    except ImportError:
+        pass
+    client.run(TOKEN)
