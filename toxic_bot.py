@@ -590,7 +590,7 @@ async def recent_best(ctx, *args):
     user_id = user_data["user_id"]
     if multi_mode:
         recent_play, recent_play_next = get_user_best_v2(user_id)
-        recent_play = np.array(recent_play)
+        recent_play = np.concatenate((np.array(recent_play), np.array(recent_play_next)))
         indexes = sort_plays_by_date(recent_play, v2=True)
         recent_play = recent_play[indexes]
     else:
@@ -749,6 +749,7 @@ async def show_top_scores(ctx, *args):
     if not single_mode:
         user_id = user_data["user_id"]
         scores_data, scores_data_next = get_user_best_v2(user_id)
+        scores_data = np.concatenate((scores_data, scores_data_next))
         desc_text = add_embed_description_on_osutop(scores_data[:5], 0)
         player_country = scores_data[0]["user"]["country_code"]
         player_country_rank = user_data['pp_country_rank']
