@@ -534,15 +534,23 @@ async def recent(ctx, *args):
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                      icon_url=f"http://s.ppy.sh/a/{player_id}")
     embed.set_footer(text=footer_text)
+
+    img_to_send = io.BytesIO()
     if not is_gif:
-        recent_image.save("recent.png")
+        recent_image.save(img_to_send, format='PNG')
+        img_to_send.seek(0)
+        file = discord.File(img_to_send, "recent.png")
         embed.set_image(url="attachment://recent.png")
-        await ctx.send(embed=embed, file=discord.File('recent.png'))
+        await ctx.send(embed=embed, file=file)
     else:
+        recent_image.save(img_to_send, format='GIF')
+        img_to_send.seek(0)
+        file = discord.File(img_to_send, "recent.gif")
         embed.set_image(url="attachment://recent.gif")
-        await ctx.send(embed=embed, file=discord.File('recent.gif'))
+        await ctx.send(embed=embed, file=file)
 
     del recent_image
+    del img_to_send
     return
 
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
@@ -644,15 +652,24 @@ async def recent_best(ctx, *args):
     embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                      icon_url=f"http://s.ppy.sh/a/{player_id}")
     embed.set_footer(text=footer_text)
+
+    img_to_send = io.BytesIO()
     if not is_gif:
-        recent_image.save("recent.png")
+        recent_image.save(img_to_send, format='PNG')
+        img_to_send.seek(0)
+        file = discord.File(img_to_send, "recent.png")
         embed.set_image(url="attachment://recent.png")
-        await ctx.send(embed=embed, file=discord.File('recent.png'))
+        await ctx.send(embed=embed, file=file)
     else:
+        recent_image.save(img_to_send, format='GIF')
+        img_to_send.seek(0)
+        file = discord.File(img_to_send, "recent.gif")
         embed.set_image(url="attachment://recent.gif")
-        await ctx.send(embed=embed, file=discord.File('recent.gif'))
+        await ctx.send(embed=embed, file=file)
 
     del recent_image
+    del img_to_send
+
     return
 
 
@@ -875,15 +892,23 @@ async def compare(ctx, *args):
         embed.set_author(name=f"Most recent play of {osu_username}", url=f"https://osu.ppy.sh/users/{player_id}",
                          icon_url=f"http://s.ppy.sh/a/{player_id}")
         embed.set_footer(text=footer_text)
+
+        img_to_send = io.BytesIO()
         if not is_gif:
-            recent_image.save("recent.png")
+            recent_image.save(img_to_send, format='PNG')
+            img_to_send.seek(0)
+            file = discord.File(img_to_send, "recent.png")
             embed.set_image(url="attachment://recent.png")
-            await ctx.send(embed=embed, file=discord.File('recent.png'))
+            await ctx.send(embed=embed, file=file)
         else:
+            recent_image.save(img_to_send, format='GIF')
+            img_to_send.seek(0)
+            file = discord.File(img_to_send, "recent.gif")
             embed.set_image(url="attachment://recent.gif")
-            await ctx.send(embed=embed, file=discord.File('recent.gif'))
+            await ctx.send(embed=embed, file=file)
 
         del recent_image
+        del img_to_send
         return
 
     if len(scores_data) > 3:
