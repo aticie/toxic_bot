@@ -344,17 +344,6 @@ async def prefix(ctx, arg1, arg2=None):
     return
 
 
-@client.event
-async def on_command_error(ctx, error):
-    if ctx.command is None:
-        return
-    elif ctx.command.is_on_cooldown(ctx):
-        await ctx.send(error)
-    else:
-        logger.error(error)
-        return
-
-
 async def check_args_for_map(ctx, args):
     channel_id = str(ctx.message.channel.id)
     bmap_id = get_value_from_dbase(channel_id, "recent")
