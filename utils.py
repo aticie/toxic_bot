@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 import random
 import cv2
 import numpy as np
-import requests
+import aiohttp
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 from oppai import *
 
@@ -299,22 +299,27 @@ def add_avatar_rim(avatar_im, avatar_pos, avatar_size, hue):
     return cv2.circle(avatar_im, avatar_pos, avatar_size // 2, rgb, 6, cv2.LINE_AA)
 
 
-def image_from_cache_or_web(thing_id, url, folder):
+async def image_from_cache_or_web(thing_id, url, folder):
     path = os.path.join(folder, thing_id + ".jpg")
     if not os.path.exists(folder):
         os.mkdir(folder)
     if os.path.exists(path):
         image = cv2.imread(path)
     else:
-        with requests.get(url) as r:
-            nparr = np.fromstring(r.content, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            cv2.imwrite(path, image)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as r:
+                if r.status == 200:
+                    response_content = await r.read()
+                    nparr = np.fromstring(response_content.decode(), np.uint8)
+                    image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+                    cv2.imwrite(path, image)
+                else:
+                    raise aiohttp.ClientResponseError(f"Could not connect to {url}")
 
     return image
 
 
-def beatmap_from_cache_or_web(beatmap_id):
+async def beatmap_from_cache_or_web(beatmap_id):
     if not os.path.exists("Beatmaps"):
         os.mkdir("Beatmaps")
     beatmap_id = str(beatmap_id)
@@ -325,20 +330,24 @@ def beatmap_from_cache_or_web(beatmap_id):
 
     if not os.path.exists(path):
         try:
-            with requests.get(url, timeout=1, stream=True) as r:
-                with open(path, "w", encoding='utf-8') as f:
-                    f.write(r.content.decode("utf-8"))
-                print(f"Downloading {beatmap_id} from osu!")
-        except requests.exceptions.Timeout as e:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as r:
+                    contents = await r.read()
+                    with open(path, "w", encoding='utf-8') as f:
+                        f.write(contents.decode("utf-8"))
+                    print(f"Downloading {beatmap_id} from osu!")
+        except aiohttp.ServerTimeoutError as e:
             print(f"Downloading {beatmap_id} FAILED FROM OSU! {e}")
             print(f"Downloading {beatmap_id} from bloodcat!")
             new_url = "https://bloodcat.com/osu/b/" + beatmap_id
-            with requests.get(new_url, timeout=1, stream=True) as r:
-                if r.content.decode('utf-8') == "* File not found or inaccessable!":
-                    raise Exception(f"Beatmap {beatmap_id} could not be downloaded...")
-                else:
-                    with open(path, "w", encoding='utf-8') as f:
-                        f.write(r.content.decode("utf-8"))
+            async with aiohttp.ClientSession() as session:
+                async with session.get(new_url) as r:
+                    contents = await r.read()
+                    if contents.decode('utf-8') == "* File not found or inaccessable!":
+                        raise Exception(f"Beatmap {beatmap_id} could not be downloaded...")
+                    else:
+                        with open(path, "w", encoding='utf-8') as f:
+                            f.write(contents.decode("utf-8"))
 
     ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
 
@@ -509,15 +518,15 @@ def sort_plays_by_date(plays, v2=False):
     return indexes
 
 
-def get_recent_best(user_id, date_index=None, best_index=None):
+async def get_recent_best(user_id, date_index=None, best_index=None):
     rs_api_url = 'https://osu.ppy.sh/api/get_user_best'
     params = {'k': OSU_API,  # Api key
               'u': user_id,
               'limit': 100}
 
-    with requests.get(url=rs_api_url, params=params) as rsp:
-
-        the_response_json = rsp.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(rs_api_url, params=params) as rsp:
+            the_response_json = await rsp.json()
 
     if len(the_response_json) == 0:
         return -1
@@ -542,31 +551,35 @@ def get_recent_best(user_id, date_index=None, best_index=None):
     return recent_data
 
 
-def get_user_best_v2(user_id):
+async def get_user_best_v2(user_id):
     rs_api_url = f"https://osu.ppy.sh/users/{user_id}/scores/best?"
     params = {'mode': 'osu',
               'offset': '0',
               'limit': '50'}
-    with requests.get(url=rs_api_url, params=params) as rsp:
-        plays = rsp.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(rs_api_url, params=params) as rsp:
+            plays = await rsp.json()
 
     params_next = {'mode': 'osu',
-              'offset': '50',
-              'limit': '50'}
-    with requests.get(url=rs_api_url, params=params_next) as rsp2:
-        plays_next = rsp2.json()
+                   'offset': '50',
+                   'limit': '50'}
+
+    async with aiohttp.ClientSession() as session2:
+        async with session2.get(rs_api_url, params=params_next) as rsp2:
+            plays_next = await rsp2.json()
 
     return plays, plays_next
 
 
-def get_recent(user_id, limit=1):
+async def get_recent(user_id, limit=1):
     rs_api_url = 'https://osu.ppy.sh/api/get_user_recent'
     params = {'k': OSU_API,  # Api key
               'u': user_id,
               'limit': limit}
 
-    with requests.get(url=rs_api_url, params=params) as rsp:
-        the_response_json = rsp.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(rs_api_url, params=params) as rsp:
+            the_response_json = await rsp.json()
 
     if len(the_response_json) == 0:
         return -1
@@ -575,14 +588,15 @@ def get_recent(user_id, limit=1):
     return recent_data
 
 
-def get_osu_user_data(username):
+async def get_osu_user_data(username):
     user_api_url = "https://osu.ppy.sh/api/get_user"
     user_params = {'k': OSU_API,  # Api key
                    'u': username
                    }
 
-    with requests.get(url=user_api_url, params=user_params) as user_req:
-        user_json = user_req.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(user_api_url, params=user_params) as rsp:
+            user_json = await rsp.json()
 
     if not len(user_json) == 1:
         return None
@@ -611,7 +625,7 @@ def enumerate_mods(mods_array):
     return mod_num
 
 
-def get_bmap_data(bmap_id, mods=0, limit=1):
+async def get_bmap_data(bmap_id, mods=0, limit=1):
     if isinstance(mods, list):
         mods = enumerate_mods(mods)
     mods = int(mods)
@@ -623,13 +637,11 @@ def get_bmap_data(bmap_id, mods=0, limit=1):
                    'mods': mods,
                    'limit': limit}
 
-    with requests.get(url=bmap_api_url, params=bmap_params) as bmap_req:
-        try:
-            bmap_data = bmap_req.json()[0]
-        except:
-            return None
+    async with aiohttp.ClientSession() as session:
+        async with session.get(bmap_api_url, params=bmap_params) as bmap_rsp:
+            bmap_data = await bmap_rsp.json()
 
-    return bmap_data
+    return bmap_data[0]
 
 
 def show_bmap_details(bmap_metadata, bmap_data, mods):
@@ -707,20 +719,21 @@ def show_bmap_details(bmap_metadata, bmap_data, mods):
     return fields
 
 
-def get_user_scores_on_bmap(player_name, bmap_id):
+async def get_user_scores_on_bmap(player_name, bmap_id):
     score_api_url = "https://osu.ppy.sh/api/get_scores"
     bmap_id = int(bmap_id)
     score_params = {'k': OSU_API,  # Api key
                     'b': bmap_id,
                     'u': player_name}
 
-    with requests.get(url=score_api_url, params=score_params) as score_req:
-        score_data = score_req.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(score_api_url, params=score_params) as score_rsp:
+            score_data = await score_rsp.json()
 
     return score_data
 
 
-def get_cover_image(bmap_setid):
+async def get_cover_image(bmap_setid):
     covers_folder = "Covers"
     covers_local = os.listdir(covers_folder)
     cover_image_name = f"{bmap_setid}.png"
@@ -733,8 +746,9 @@ def get_cover_image(bmap_setid):
         return cover_img_data, True
 
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
-    with requests.get(url=cover_url) as cover_req:
-        cover_img_data = cover_req.content
+    async with aiohttp.ClientSession() as session:
+        async with session.get(cover_url) as cover_rsp:
+            cover_img_data = await cover_rsp.read()
 
     return cover_img_data, False
 
@@ -773,7 +787,7 @@ def draw_chat_lines(chat):
     max_width = max_uname_width + hms_width
 
     height = outline_margin * 2 + len(chat) * (max_height + inline_margin)
-    width = (outline_margin + margin_text_inbetween)* 2 + max_uname_width + hms_width + max_content_width
+    width = (outline_margin + margin_text_inbetween) * 2 + max_uname_width + hms_width + max_content_width
 
     del d
 
@@ -794,48 +808,52 @@ def draw_chat_lines(chat):
                font=regular_torus)
         d.text((margin_text_inbetween + outline_margin + hms_width, h),
                f"{username}" if is_action else f"{username}:", fill=color, font=semibold_torus)
-        d.text((margin_text_inbetween*2 + outline_margin + hms_width + max_uname_width, h), f"{content}", fill=(255, 255, 255),
+        d.text((margin_text_inbetween * 2 + outline_margin + hms_width + max_uname_width, h), f"{content}",
+               fill=(255, 255, 255),
                font=regular_torus)
 
     del d
     return img
 
 
-def get_turkish_chat(limit=10):
-    url = "https://osu.ppy.sh/community/chat/channels/1397/messages"
+async def get_turkish_chat(limit=10):
+    chat_api_url = "https://osu.ppy.sh/community/chat/channels/1397/messages"
     headers = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
         "Cookie": os.environ["COOKIE"],
         'User-Agent': "PostmanRuntime/7.22.0"
     }
 
-    with requests.get(url, headers=headers) as chat_response:
-        chat = chat_response.json()
+    async with aiohttp.ClientSession() as session:
+        async with session.get(chat_api_url, headers=headers) as chat_rsp:
+            chat = await chat_rsp.json()
 
     return chat[-limit:]
 
 
-def get_country_rankings_v2(bmap_id, mods):
+async def get_country_rankings_v2(bmap_id, mods):
     country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
     mods = mods.upper()
-    mods_array = [mods[i:i + 2] for i in range(0, len(mods), 2)]
+    mods_array = [("mods[]", mods[i:i + 2]) for i in range(0, len(mods), 2)]
     header = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
         "Cookie": os.environ["COOKIE"],
         'User-Agent': "PostmanRuntime/7.22.0"
     }
-    country_params = {
-        "type": "country",
-        "mods[]": mods_array,
-        "mode": "osu"
-    }
-    with requests.get(country_url, params=country_params, headers=header) as countrycontent:
-        decoded = json.loads(countrycontent.content.decode('ISO-8859-1'))
+    mods_array.append(("type", "country"))
+    mods_array.append(("mode", "osu"))
+    country_params = mods_array
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(country_url, params=country_params, headers=header) as country_rsp:
+            country_content = await country_rsp.read()
+
+    decoded = json.loads(country_content.decode('ISO-8859-1'))
 
     return decoded["scores"]
 
 
-def get_country_rankings(bmap_data):
+async def get_country_rankings(bmap_data):
     country_url = f"https://osu.ppy.sh/web/osu-osz2-getscores.php"
     headers = {
         "User-Agent": "osu!",
@@ -864,8 +882,11 @@ def get_country_rankings(bmap_data):
         'mods': 0
     }
 
-    with requests.get(country_url, headers=headers, params=params) as r:
-        country_data = parse_country_data(r.text)
+    async with aiohttp.ClientSession() as session:
+        async with session.get(country_url, params=params, headers=headers) as country_rsp:
+            country_content = await country_rsp.read()
+
+    country_data = country_content.decode('utf-8')
 
     return country_data
 
@@ -959,7 +980,7 @@ def add_embed_description_on_compare(scores, offset, bmp):
     return desc_text
 
 
-def add_embed_description_on_osutop(scores, offset):
+async def add_embed_description_on_osutop(scores, offset):
     desc_text = ""
     for play_rank, score in enumerate(scores):
         player_score = score["score"]
@@ -968,7 +989,7 @@ def add_embed_description_on_osutop(scores, offset):
         player_mods = "+" + "".join(mods) if len(mods) > 0 else ""
         mods_int = enumerate_mods(mods)
 
-        bmp = beatmap_from_cache_or_web(score["beatmap"]["id"])
+        bmp = await beatmap_from_cache_or_web(score["beatmap"]["id"])
         bmap_info = bmap_info_from_oppai(bmp, mods_int)
         bmap_title = score["beatmapset"]["title"]
         bmap_version = score["beatmap"]["version"]
@@ -1040,10 +1061,10 @@ def draw_map_stars(d, offset, star_rating):
     return
 
 
-def draw_user_play(player_name, play_data, background_image, bmap_data, from_cache=True):
+async def draw_user_play(player_name, play_data, background_image, bmap_data, from_cache=True):
     bmapset_id = bmap_data["beatmapset_id"]
     bmap_id = bmap_data["beatmap_id"]
-    bmp = beatmap_from_cache_or_web(bmap_id)
+    bmp = await beatmap_from_cache_or_web(bmap_id)
 
     cover = Image.open(io.BytesIO(background_image))
     if not from_cache:
@@ -1214,7 +1235,7 @@ def make_recent_gif(final_cover, pp_text, fc_pp_text_bool):
     return images
 
 
-def get_and_save_user_assets(user_data, achievement_data):
+async def get_and_save_user_assets(user_data, achievement_data):
     assets_folder = "Assets"
     medals_folder = "Medals"
 
@@ -1251,8 +1272,9 @@ def get_and_save_user_assets(user_data, achievement_data):
 
         # Else, save to cache
         else:
-            with requests.get(asset_url) as asset_rsp:
-                asset_img_data = asset_rsp.content
+            async with aiohttp.ClientSession() as session:
+                async with session.get(asset_url) as asset_rsp:
+                    asset_img_data = await asset_rsp.read()
             asset = Image.open(io.BytesIO(asset_img_data))
             asset.save(asset_path)
             assets.append(asset)
@@ -1275,8 +1297,9 @@ def get_and_save_user_assets(user_data, achievement_data):
 
         # Else, save to cache
         else:
-            with requests.get(medal_url) as medal_rsp:
-                medal_img_data = medal_rsp.content
+            async with aiohttp.ClientSession() as session:
+                async with session.get(medal_url) as medal_rsp:
+                    medal_img_data = await medal_rsp.read()
             medal = Image.open(io.BytesIO(medal_img_data))
             medal.save(medal_path)
             medals.append(medal)
@@ -1287,7 +1310,7 @@ def get_and_save_user_assets(user_data, achievement_data):
 async def draw_user_profile(user_data, achievements_data, ctx):
     now = time.time()
 
-    assets, medals = get_and_save_user_assets(user_data, achievements_data)
+    assets, medals = await get_and_save_user_assets(user_data, achievements_data)
 
     num_badges = min(len(user_data["badges"]), 5)
     ch = 250 if num_badges > 0 else 180  # Wanted cover height
@@ -1445,9 +1468,11 @@ def draw_level_bar(level, draw):
     return current, progress
 
 
-def get_osu_user_web_profile(osu_username):
-    with requests.get(f"https://osu.ppy.sh/users/{osu_username}") as r:
-        soup = BeautifulSoup(r.text, 'html.parser')
+async def get_osu_user_web_profile(osu_username):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"https://osu.ppy.sh/users/{osu_username}/osu") as user_rsp:
+            userpage_content = await user_rsp.read()
+    soup = BeautifulSoup(userpage_content, 'html.parser')
     try:
         json_user = soup.find(id="json-user").string
         json_achievements = soup.find(id="json-achievements").string

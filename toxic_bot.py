@@ -49,16 +49,18 @@ def parse_args():
     return
 
 
-def get_user_info(username):
+async def get_user_info(username):
     try:
-        r = requests.get(f"https://osu.ppy.sh/users/{username}", timeout=3)
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f'https://osu.ppy.sh/users/{username}/osu') as r:
+                soup = BeautifulSoup(await r.read(), 'html.parser')
     except:
         raise Exception(f"Failed to get data for {username}")
-    soup = BeautifulSoup(r.text, 'html.parser')
     try:
         json_user = soup.find(id="json-user").string
     except:
         raise Exception(f"`{username}` adlı kişiyi osu!'da bulamadım.")
+
     user_dict = json.loads(json_user)
 
     return user_dict
@@ -84,10 +86,9 @@ async def update_users(ctx):
 
 @client.command(aliases=['osutr', 'osuturkiye'])
 async def get_osutr_chat(ctx, lim=10):
-
     if lim > 10:
         lim = 10
-    chat = get_turkish_chat(lim)
+    chat = await get_turkish_chat(lim)
     image = draw_chat_lines(chat)
     arr = io.BytesIO()
     image.save(arr, format='PNG')
@@ -196,7 +197,7 @@ async def _restart_bot(ctx):
     subprocess.call([sys.executable, "toxic_bot.py"])
 
 
-def add_single_page(ctx, show_data, begin, fixed_fields, bmp):
+async def add_single_page(ctx, show_data, begin, fixed_fields, bmp):
     if fixed_fields["callsign"] == "country":
         desc_text = add_embed_fields_on_country(show_data, begin)
         embed2 = discord.Embed(title=fixed_fields["title_text"], description=desc_text,
@@ -211,7 +212,7 @@ def add_single_page(ctx, show_data, begin, fixed_fields, bmp):
         embed2.set_author(name=fixed_fields["author_name"], url=fixed_fields["player_url"],
                           icon_url=fixed_fields["avatar_url"])
     elif fixed_fields["callsign"] == "osutop":
-        desc_text = add_embed_description_on_osutop(show_data, begin)
+        desc_text = await add_embed_description_on_osutop(show_data, begin)
         embed2 = discord.Embed(description=desc_text, color=ctx.author.color)
         embed2.set_thumbnail(url=fixed_fields["avatar_url"])
         embed2.set_author(
@@ -265,7 +266,7 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
             end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
-            embed2 = add_single_page(ctx, show_data, begin, fixed_fields, bmp)
+            embed2 = await add_single_page(ctx, show_data, begin, fixed_fields, bmp)
             embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
@@ -281,7 +282,7 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
             end = min(num * result_per_page, max_index)
             show_data = data[begin:end]
 
-            embed2 = add_single_page(ctx, show_data, begin, fixed_fields, bmp)
+            embed2 = await add_single_page(ctx, show_data, begin, fixed_fields, bmp)
             embed2.set_footer(text=f"Page {num} of {max_page}")
 
             await msg.clear_reactions()
@@ -326,6 +327,7 @@ async def set_prefix(guild, arg):
         json.dump(prefixes, f, indent=2)
 
     return
+
 
 @client.command(name='prefix')
 @commands.has_permissions(administrator=True)
@@ -402,8 +404,8 @@ async def map(ctx, *args):
     bmap_id = args["bmap"]
     mods = args["mods"]
 
-    bmap_data = beatmap_from_cache_or_web(bmap_id)
-    bmap_metadata = get_bmap_data(bmap_id, mods)
+    bmap_data = await beatmap_from_cache_or_web(bmap_id)
+    bmap_metadata = await get_bmap_data(bmap_id, mods)
     if bmap_data is None:
         await ctx.send("Böyle bir beatmap yok")
         return
@@ -431,7 +433,7 @@ async def tourney_ping_on(ctx):
         ctx.command.reset_cooldown(ctx)
         await ctx.send("Önce profilini linkle: `*link <username>`")
     osu_username = user_properties["osu_username"]
-    user_data, _ = get_osu_user_web_profile(osu_username)
+    user_data, _ = await get_osu_user_web_profile(osu_username)
 
     with open(os.path.join("Users", "user_properties.json"), "r") as f:
         user_dict = json.load(f)
@@ -498,13 +500,13 @@ async def recent(ctx, *args):
     else:
         osu_username = " ".join(args)
 
-    recent_play = get_recent(osu_username)
+    recent_play = await get_recent(osu_username)
 
     if recent_play == -1:
         await ctx.send(f"`{osu_username}` oyunu bırakmış 😔")
         return
 
-    user_data = get_osu_user_data(username=osu_username)
+    user_data = await get_osu_user_data(username=osu_username)
     osu_username = user_data["username"]
     bmap_id = recent_play['beatmap_id']
 
@@ -514,10 +516,10 @@ async def recent(ctx, *args):
 
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
-    bmap_data = get_bmap_data(bmap_id, mods)
+    bmap_data = await get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
-    cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes,
+    cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
+    recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
                                                                   bmap_data,
                                                                   cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
@@ -553,6 +555,7 @@ async def recent(ctx, *args):
     del img_to_send
     return
 
+
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
 async def recent_best(ctx, *args):
     logger.info(
@@ -582,7 +585,7 @@ async def recent_best(ctx, *args):
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
-    user_data = get_osu_user_data(username=osu_username)
+    user_data = await get_osu_user_data(username=osu_username)
     osu_username = user_data["username"]
     user_id = user_data["user_id"]
     if multi_mode:
@@ -591,12 +594,12 @@ async def recent_best(ctx, *args):
         indexes = sort_plays_by_date(recent_play, v2=True)
         recent_play = recent_play[indexes]
     else:
-        recent_play = get_recent_best(osu_username, date_index=which_best)
+        recent_play = await get_recent_best(osu_username, date_index=which_best)
 
     if multi_mode:
         max_pages = len(recent_play) // 5 + 1
 
-        desc_text = add_embed_description_on_osutop(recent_play[:5], 0)
+        desc_text = await add_embed_description_on_osutop(recent_play[:5], 0)
         player_country = recent_play[0]["user"]["country_code"]
         player_country_rank = user_data['pp_country_rank']
         player_global_rank = user_data['pp_rank']
@@ -632,10 +635,10 @@ async def recent_best(ctx, *args):
 
     mods = recent_play['enabled_mods']
     _, mods_text = get_mods(mods)
-    bmap_data = get_bmap_data(bmap_id, mods)
+    bmap_data = await get_bmap_data(bmap_id, mods)
     bmapset_id = bmap_data["beatmapset_id"]
-    cover_img_bytes, cover_from_cache = get_cover_image(bmapset_id)
-    recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, recent_play, cover_img_bytes,
+    cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
+    recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
                                                                   bmap_data,
                                                                   cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
@@ -689,12 +692,12 @@ async def show_osu_profile(ctx, *args):
         args = (osu_username,)
 
     for osu_username in args:
-        real_uname = get_osu_user_data(osu_username)
+        real_uname = await get_osu_user_data(osu_username)
         if real_uname is None:
             await ctx.send(f"`{osu_username}` bulunamadı... :pensive:")
             return
         real_username = real_uname["username"]
-        user_data, achievements_data = get_osu_user_web_profile(real_username)
+        user_data, achievements_data = await get_osu_user_web_profile(real_username)
         osu_username = user_data["username"]
         user_id = user_data["id"]
         image = await draw_user_profile(user_data, achievements_data, ctx)
@@ -747,7 +750,7 @@ async def show_top_scores(ctx, *args):
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
 
-    user_data = get_osu_user_data(osu_username)
+    user_data = await get_osu_user_data(osu_username)
     if user_data is None:
         ctx.send(f"`{osu_username}` diye birisi yok 😔")
         return
@@ -756,7 +759,7 @@ async def show_top_scores(ctx, *args):
         user_id = user_data["user_id"]
         scores_data, scores_data_next = get_user_best_v2(user_id)
         scores_data = np.concatenate((scores_data, scores_data_next))
-        desc_text = add_embed_description_on_osutop(scores_data[:5], 0)
+        desc_text = await add_embed_description_on_osutop(scores_data[:5], 0)
         player_country = scores_data[0]["user"]["country_code"]
         player_country_rank = user_data['pp_country_rank']
         player_global_rank = user_data['pp_rank']
@@ -789,15 +792,15 @@ async def show_top_scores(ctx, *args):
             await ctx.send(f"Olmayan bir skor istiyorsun 😔")
             return
 
-        score_data = get_recent_best(osu_username, best_index=int(which_best) - 1)
+        score_data = await get_recent_best(osu_username, best_index=int(which_best) - 1)
         mods = score_data['enabled_mods']
         _, mods_text = get_mods(mods)
         bmap_id = score_data['beatmap_id']
-        bmap_data = get_bmap_data(bmap_id)
+        bmap_data = await get_bmap_data(bmap_id)
         bmap_setid = bmap_data["beatmapset_id"]
         put_recent_on_file(bmap_id, channel_id)
-        cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, score_data, cover_img_bytes,
+        cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
+        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, score_data, cover_img_bytes,
                                                                       bmap_data,
                                                                       cover_from_cache)
         bmap_data["difficultyrating"] = diff_rating
@@ -857,12 +860,12 @@ async def compare(ctx, *args):
     if osu_username == -1:
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
         return
-    scores_data = get_user_scores_on_bmap(osu_username, bmap_id)
+    scores_data = await get_user_scores_on_bmap(osu_username, bmap_id)
     if len(scores_data) == 0:
         await ctx.send(f"`{osu_username}` mapi oynamamış 😔")
         return
-    user_data = get_osu_user_data(username=osu_username)
-    bmap_data = get_bmap_data(bmap_id)
+    user_data = await get_osu_user_data(username=osu_username)
+    bmap_data = await get_bmap_data(bmap_id)
     osu_username = user_data["username"]
     player_id = user_data["user_id"]
     bmap_title = bmap_data["title"]
@@ -875,15 +878,15 @@ async def compare(ctx, *args):
     avatar_url = f"http://s.ppy.sh/a/{player_id}"
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     title_text = f"{bmap_artist} - {bmap_title} [{bmap_version}]"
-    bmp = beatmap_from_cache_or_web(bmap_id)
+    bmp = await beatmap_from_cache_or_web(bmap_id)
 
     if len(scores_data) == 0:
         await ctx.send(f"`{osu_username}` oynamamış 😔")
         return
 
     if len(scores_data) == 1:
-        cover_img_bytes, cover_from_cache = get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = draw_user_play(osu_username, scores_data[0], cover_img_bytes,
+        cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
+        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, scores_data[0], cover_img_bytes,
                                                                       bmap_data,
                                                                       cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
@@ -985,9 +988,9 @@ async def show_map_score(ctx, *args):
     channel_id = str(ctx.message.channel.id)
     put_recent_on_file(bmap_id, channel_id)
 
-    scores_data = get_user_scores_on_bmap(player_name, bmap_id)
-    user_data = get_osu_user_data(username=player_name)
-    bmap_data = get_bmap_data(bmap_id)
+    scores_data = await get_user_scores_on_bmap(player_name, bmap_id)
+    user_data = await get_osu_user_data(username=player_name)
+    bmap_data = await get_bmap_data(bmap_id)
     osu_username = user_data["username"]
     player_id = user_data["user_id"]
     bmap_title = bmap_data["title"]
@@ -1000,7 +1003,7 @@ async def show_map_score(ctx, *args):
     avatar_url = f"http://s.ppy.sh/a/{player_id}"
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     title_text = f"{bmap_artist} - {bmap_title} [{bmap_version}]"
-    bmp = beatmap_from_cache_or_web(bmap_id)
+    bmp = await beatmap_from_cache_or_web(bmap_id)
 
     if len(scores_data) > 3:
         desc_text = add_embed_description_on_compare(scores_data[:3], 0, bmp)
@@ -1067,8 +1070,8 @@ async def show_country(ctx, *args):
         return
 
     put_recent_on_file(bmap_id, channel_id)
-    country_data = get_country_rankings_v2(bmap_id, requested_mods)
-    bmap_data = get_bmap_data(bmap_id)
+    country_data = await get_country_rankings_v2(bmap_id, requested_mods)
+    bmap_data = await get_bmap_data(bmap_id)
     if len(country_data) == 0:
         await ctx.send("Ülke sıralamasında kimsenin skoru yok 😔")
         return
@@ -1099,6 +1102,7 @@ async def show_country(ctx, *args):
 if __name__ == "__main__":
     try:
         import googleclouddebugger
+
         googleclouddebugger.enable(module='toxic_bot', version='v1.0')
     except ImportError:
         pass
