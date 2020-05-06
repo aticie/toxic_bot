@@ -752,7 +752,7 @@ async def show_top_scores(ctx, *args):
 
     user_data = await get_osu_user_data(osu_username)
     if user_data is None:
-        ctx.send(f"`{osu_username}` diye birisi yok 😔")
+        await ctx.send(f"`{osu_username}` diye birisi yok 😔")
         return
 
     if not single_mode:
