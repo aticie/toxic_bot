@@ -3,10 +3,24 @@ import math
 import subprocess
 import sys
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from utils import *
 import logging
+
+@tasks.loop(seconds=60.0)
+async def send_image():
+    print("Sending image!!")
+    random_img = Image.fromarray(np.uint8(np.random.random((100, 100,3))*255))
+    img_to_send = io.BytesIO()
+
+    embed = discord.Embed()
+    channel = client.get_channel(id=609718050543108135)
+    random_img.save(img_to_send, format="JPEG")
+    img_to_send.seek(0)
+    file = discord.File(img_to_send, "recent.jpg")
+    embed.set_image(url="attachment://recent.jpg")
+    await channel.send(embed=embed, file=file)
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.DEBUG)
@@ -292,6 +306,9 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
 @client.event
 async def on_ready():
     global prefix_file, prefixes
+
+    send_image.start()
+
     print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} - Bot starting!!")
     if os.path.exists(prefix_file):
         with open(prefix_file, "r") as f:
