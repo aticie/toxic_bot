@@ -757,7 +757,7 @@ async def show_top_scores(ctx, *args):
 
     if not single_mode:
         user_id = user_data["user_id"]
-        scores_data, scores_data_next = get_user_best_v2(user_id)
+        scores_data, scores_data_next = await get_user_best_v2(user_id)
         scores_data = np.concatenate((scores_data, scores_data_next))
         desc_text = await add_embed_description_on_osutop(scores_data[:5], 0)
         player_country = scores_data[0]["user"]["country_code"]
