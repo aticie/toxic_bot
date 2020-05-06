@@ -589,7 +589,7 @@ async def recent_best(ctx, *args):
     osu_username = user_data["username"]
     user_id = user_data["user_id"]
     if multi_mode:
-        recent_play, recent_play_next = get_user_best_v2(user_id)
+        recent_play, recent_play_next = await get_user_best_v2(user_id)
         recent_play = np.concatenate((np.array(recent_play), np.array(recent_play_next)))
         indexes = sort_plays_by_date(recent_play, v2=True)
         recent_play = recent_play[indexes]
