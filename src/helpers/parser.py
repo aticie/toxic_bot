@@ -20,6 +20,8 @@ class Parser:
     async def parse_args(self, args: tuple, mentions: List[Member]):
 
         args = list(args)
+        prefix = self.db.get_prefix(self.ctx.guild.id)
+        prefix = "*" if prefix is None else prefix[0]
 
         if "-l" in args:
             if "-p" in args:
@@ -32,9 +34,11 @@ class Parser:
                 self.which_play = int(args[args.index("-p") + 1]) - 1
                 if 0 > self.which_play > 99:
                     self.which_play = 0
-                    raise BadArgument("Argument after -p must be within 1-100.")
-            except (KeyError, TypeError):
-                raise BadArgument("Argument after -p must exist and must be within 1-100.")
+                    await self.ctx.send(f"Argument after -p must be within 1-100.")
+                    raise ParserExceptionBadPlayNo
+            except (ValueError, IndexError):
+                await self.ctx.send(f"Argument after -p must exist and must be within 1-100.")
+                raise ParserExceptionBadPlayNo
 
             del args[args.index("-p") + 1]
             args.remove("-p")
@@ -44,9 +48,11 @@ class Parser:
                 self.game_mode = int(args[args.index("-m") + 1])
                 if self.game_mode not in [0, 1, 2, 3]:
                     self.game_mode = 0
-                    raise BadArgument("Argument after -m must be one of [0, 1, 2, 3].")
-            except (KeyError, TypeError):
-                raise BadArgument("Argument after -m must exist and must be one of [0, 1, 2, 3].")
+                    await self.ctx.send(f"Argument after -m must be one of [0, 1, 2, 3].")
+                    raise ParserExceptionBadMode
+            except (ValueError, IndexError):
+                await self.ctx.send(f"Argument after -m must exist and must be one of [0, 1, 2, 3].")
+                raise ParserExceptionBadMode
 
             del args[args.index("-m") + 1]
             args.remove("-m")
@@ -66,9 +72,27 @@ class Parser:
         else:
             user_or_none = self.db.get_user(self.ctx.author.id)
             if user_or_none is None:
-                prefix = self.db.get_prefix(self.ctx.guild.id)
-                prefix = "*" if prefix is None else prefix[0]
                 await self.ctx.send(f"You should link your profile first. Usage: `{prefix}link <osu_username>`")
-                raise Exception()
+                raise ParserExceptionNoUserFound
+            else:
+                self.user = user_or_none[1]
 
         return
+
+
+class ParserExceptionNoUserFound(Exception):
+
+    def __init__(self):
+        super().__init__()
+
+
+class ParserExceptionBadMode(Exception):
+
+    def __init__(self):
+        super().__init__()
+
+
+class ParserExceptionBadPlayNo(Exception):
+
+    def __init__(self):
+        super().__init__()

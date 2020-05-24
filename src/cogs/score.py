@@ -1,7 +1,6 @@
 from discord.ext import commands
 
-from helpers.parser import Parser
-from helpers.util import get_recent_plays, send_multi_play_embed, send_single_play_image, game_mode_enum
+from helpers.util import *
 
 
 class Scores(commands.Cog):
@@ -21,23 +20,33 @@ class Scores(commands.Cog):
 
         mentions = ctx.message.mentions
 
-        p = Parser(ctx)
-        await p.parse_args(args, mentions)
+        parser = Parser(ctx)
 
-        # Get recent plays of the user
-        plays = await get_recent_plays(p)
-
-        # Converts game mode from int to str. Ex: 1 -> Mania
-        game_mode = game_mode_enum[p.game_mode]
-
-        if len(plays) == 0:
-            await ctx.send(f"`{p.user}` has not played recently in osu!{game_mode} :pensive:")
+        try:
+            await parser.parse_args(args, mentions)
+        except:
             return
 
-        if p.is_multi:
-            await send_multi_play_embed(ctx, p, plays)
+        # Get recent plays of the user
+        plays = await get_recent_plays(parser)
+
+        # Get player details
+        player = await get_player_details(parser)
+
+        # Converts game mode from int to str. Ex: 1 -> Mania
+        game_mode = game_mode_enum[parser.game_mode]
+
+        if len(plays) == 0:
+            await ctx.send(f"`{parser.user}` has not played recently in osu!{game_mode} :pensive:")
+            return
+
+        if parser.is_multi:
+            await send_multi_play_embed(ctx, parser, player, plays)
         else:
-            await send_single_play_image(ctx, p, plays[p.which_play])
+            # Get beatmap information
+            play = plays[parser.which_play]
+            await send_single_play_image(ctx, parser, player, play)
+
 
 
 def setup(bot):
