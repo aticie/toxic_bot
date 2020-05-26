@@ -45,9 +45,9 @@ class Player:
         self.accuracy = player_dict["accuracy"]
 
     def from_db(self, player_tuple):
-        self.username = player_tuple[0]
-        self.id = player_tuple[1]
-        self.last_updated = player_tuple[2]
-        self.country_code = player_tuple[3]
-        self.badges = player_tuple[4]
+        self.username = player_tuple[1]
+        self.id = player_tuple[2]
+        self.last_updated = player_tuple[3]
+        self.country_code = player_tuple[4]
+        self.badges = player_tuple[5]
 

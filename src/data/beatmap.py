@@ -1,3 +1,5 @@
+from oppai import *
+
 class Beatmap:
 
     def __init__(self):

@@ -1,5 +1,6 @@
 import os
 import io
+import glob
 import aiohttp
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -107,6 +108,32 @@ async def get_player_details(parser: Parser):
     return player
 
 
+async def get_player_avatar(player: Player):
+    """
+    Get player avatar from osu! or cache folder
+    :param player: Player object
+    :return:
+    """
+    avatars_folder = os.path.join(CACHE_FOLDER, "Avatars")
+    avatar_path = glob.glob(avatars_folder + os.sep + f"{player.id}.*")
+
+    if len(avatar_path) == 0:
+        avatar_path = os.path.join(avatars_folder, f"{player.id}.png")
+        avatar_url = f"http://s.ppy.sh/a/{player.id}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(avatar_url) as rsp:
+                if rsp.status == 200:
+                    avatar = await rsp.read()
+                    avatar_img = Image.open(io.BytesIO(avatar))
+                    avatar_img.save(avatar_path)
+                else:
+                    avatar_img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    else:
+        avatar_img = Image.open(avatar_path[0])
+
+    return avatar_img
+
+
 async def get_beatmap_and_cover_object(beatmap_id: int):
     """
     Get beatmap and its cover from osu!
@@ -165,17 +192,19 @@ async def get_beatmap_and_cover_object(beatmap_id: int):
 
     cover_path = os.path.join(CACHE_FOLDER, "Beatmaps", f"{beatmap.beatmapset_id}.jpg")
     if not os.path.exists(cover_path):
-        cover_url = f"https://osu.ppy.sh/osu/{beatmap.beatmapset_id}"
+        cover_url = f"https://assets.ppy.sh/beatmaps/{beatmap.beatmapset_id}/covers/cover.jpg"
         async with aiohttp.ClientSession() as session:
             async with session.get(cover_url) as cover_rsp:
-                if cover_rsp.status == "200":
+                if cover_rsp.status == 200:
                     cover_img_data = await cover_rsp.read()
                     cover_img = Image.open(io.BytesIO(cover_img_data))
                     cover_img.save(cover_path)
                 else:
                     cover_img = None
+    else:
+        cover_img = Image.open(cover_path)
 
-    ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
+    ezpp_dup(ez, map_path)
     beatmap.set_ezpp_obj(ez)
 
     return beatmap, cover_img
@@ -190,65 +219,104 @@ async def draw_single_score(score: OsuScore):
     beatmap = score.bmap
     player = score.player
 
-    title_text = beatmap.title
-    pp_text = f"{ezpp_pp(beatmap.ez)}pp"
-    details_text = f"[{beatmap.version}] {ezpp_stars(beatmap.ez):.2f}*"
+    star_rating = float(ezpp_stars(beatmap.ez))
+    player_pp = float(ezpp_pp(beatmap.ez))
+    pp_text = f"{player_pp:.2f}pp"
+    title_text = f"{beatmap.artist} - {beatmap.title}"
 
     # Left - Top - Right - Bottom
-    margin = (15, 15, 15, 15)
-
-    cover = Image.new("RGBA", (900, 250), (128, 128, 128, 255)) if score.cover is None else score.cover
+    margin = (25, 15, 15, 5)
+    discord_dark = (54, 57, 63)
+    cover = Image.new("RGBA", (900, 250), discord_dark) if score.cover is None else score.cover.convert("RGBA")
     cover = cover.filter(ImageFilter.GaussianBlur(5))
+
+    avatar = await get_player_avatar(score.player)
+    avatar = avatar.resize((80, 80))
 
     overlay_black = Image.new('RGBA', cover.size, (0, 0, 0, 180))
     cover = Image.alpha_composite(cover, overlay_black)
 
     draw = ImageDraw.Draw(cover)
 
-    draw_corners(draw)
     title_offset = draw_title(draw, title_text, margin)
-    details_offset = draw_details(draw, details_text, title_offset, margin)
+    draw_details(draw, (beatmap.version, star_rating), title_offset, margin)
+    uname_mid_pt = draw_username(draw, score.player.username, margin)
+    cover.paste(avatar, (uname_mid_pt - 40, 125))
+    draw_score_counts
 
     return cover
 
 
-def draw_details(draw, details_text, title_offset, margin):
-    details_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 42)
+def draw_username(draw, username, margin):
+    username_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 26)
+    username_fill = (255, 255, 255, 255)
+    size = draw.im.size
+    uname_w, uname_h = get_real_textsize(username, draw, username_font)
+    draw.text((margin[0], size[1] - margin[3] - uname_h), username, fill=username_fill, font=username_font)
+
+    mid_point = margin[0] + uname_w//2
+    return mid_point
+
+
+def draw_details(draw, bmap_details, title_offset, margin):
+    details_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 26)
 
     desc_fill = (255, 255, 255, 255)
 
+    version = bmap_details[0]
+    sr = bmap_details[1]
+    details_text = f"[{version}] {sr:.2f}*"
     details_w, details_h = get_real_textsize(details_text, draw, details_font)
-    draw.text((margin[0], title_offset[1]), details_text, fill=desc_fill, font=details_font)
+
+    details_changed = False
+    while details_w > 660:
+        details_changed = True
+        version = version[:-1]
+        details_w, details_h = get_real_textsize(details_text, draw, details_font)
+
+    if details_changed:
+        details_text = f"[{version}..] {bmap_details[1]:.2f}*"
+
+    draw.text((margin[0], margin[1] + title_offset[1]), details_text, fill=desc_fill, font=details_font)
 
     return details_w, details_h
 
 
 def draw_title(draw, title_text, margin):
-    pp_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 72)
-    title_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 56)
+    pp_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 36)
+    title_font = ImageFont.truetype(os.path.join(CACHE_FOLDER, "Fonts", "OpenSans-Bold.ttf"), 36)
 
     title_fill = (255, 255, 255, 255)
 
     title_w, title_h = get_real_textsize(title_text, draw, title_font)
-    if title_w > 600:
-        bmap_name = f"{title_text[:28]}.."
 
-    draw.text((margin[0], 0), title_text, fill=title_fill, font=title_font)
+    title_changed = False
+    while title_w > 660:
+        title_changed = True
+        title_text = title_text[:-1]
+        title_w, _ = get_real_textsize(title_text, draw, title_font)
+
+    if title_changed:
+        title_text = f"{title_text}.."
+
+    draw.text((margin[0], margin[1]), title_text, fill=title_fill, font=title_font)
 
     return title_w, title_h
 
 
 def draw_corners(draw):
-    draw.line([(-5, 5), (5, -5)], fill=(0, 0, 0), width=15)
-    draw.line([(draw.im.size[0] - 5, 5), (draw.im.size[0] + 5, -5)], fill=(0, 0, 0), width=15)
-    draw.line([(-5, draw.im.size[1] + 5), (5, draw.im.size[1] - 5)], fill=(0, 0, 0), width=15)
-    draw.line([(draw.im.size[0] - 5, draw.im.size[1] + 5), (draw.im.size[0] + 5, draw.im.size[1] - 5)], fill=(0, 0, 0),
+    discord_dark = (54, 57, 63)
+    draw.line([(-0, 0), (5, 5)], fill=discord_dark, width=15)
+    draw.line([(draw.im.size[0], 0), (draw.im.size[0] - 5, +5)], fill=discord_dark, width=15)
+    draw.line([(0, draw.im.size[1]), (5, draw.im.size[1] - 5)], fill=discord_dark, width=15)
+    draw.line([(draw.im.size[0], draw.im.size[1]), (draw.im.size[0] - 5, draw.im.size[1] - 5)], fill=discord_dark,
               width=15)
 
 
 def get_real_textsize(text, draw, font):
+    intext_margin = 5
     offset_x, offset_y = font.getoffset(text)
     width, height = draw.textsize(text, font=font)
     width += offset_x
-    height += offset_y
+    height += intext_margin
     return width, height
