@@ -4,23 +4,35 @@ import subprocess
 import sys
 import discord
 from discord.ext import commands, tasks
+import aiohttp
+from aiohttp import FormData
 
 from utils import *
 import logging
 
-@tasks.loop(seconds=60.0)
-async def send_image():
-    print("Sending image!!")
-    random_img = Image.fromarray(np.uint8(np.random.random((100, 100,3))*255))
-    img_to_send = io.BytesIO()
 
-    embed = discord.Embed()
-    channel = client.get_channel(id=609718050543108135)
-    random_img.save(img_to_send, format="JPEG")
-    img_to_send.seek(0)
-    file = discord.File(img_to_send, "recent.jpg")
-    embed.set_image(url="attachment://recent.jpg")
-    await channel.send(embed=embed, file=file)
+@tasks.loop(hours=8)
+async def refresh_token():
+
+    with open("oauth2_token.json", "r") as f:
+        tokens = json.load(f)
+
+    refresh_url = "https://osu.ppy.sh/oauth/token"
+    data = FormData()
+    data.add_field("grant_type", "refresh_token")
+    data.add_field("client_id", "703")
+    data.add_field("client_secret", os.environ["CLIENT_SECRET"])
+    data.add_field("refresh_token", tokens["refresh_token"])
+    async with aiohttp.ClientSession() as session:
+        async with session.post(refresh_url, data=data) as r:
+            new_tokens = await r.json()
+
+    with open("oauth2_token.json", "w") as f:
+        json.dump(new_tokens, f)
+
+    os.environ["OAUTH2_TOKEN"] = new_tokens["access_token"]
+    return
+
 
 discord_logger = logging.getLogger('discord')
 discord_logger.setLevel(logging.DEBUG)
@@ -34,7 +46,7 @@ prefixes = {}
 
 logger = logging.getLogger('Bot-Main')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('Bot.log')
+fh = logging.FileHandler('Bot.log', encoding='utf-8')
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s [%(levelname)s]: %(message)s')
 fh.setFormatter(formatter)
@@ -100,8 +112,8 @@ async def update_users(ctx):
 
 @client.command(aliases=['osutr', 'osuturkiye'])
 async def get_osutr_chat(ctx, lim=10):
-    if lim > 10:
-        lim = 10
+    if lim > 50:
+        lim = 50
     chat = await get_turkish_chat(lim)
     image = draw_chat_lines(chat)
     arr = io.BytesIO()
@@ -119,8 +131,11 @@ async def get_osutr_chat(ctx, lim=10):
 async def on_message(message):
     await client.process_commands(message)
     channel_id = message.channel.id
-    if not (channel_id == 602863040756580361 or channel_id == 676411865592758272):
+    if not (channel_id == 602863040756580361 or channel_id == 609718050543108135):
         return
+
+    logger.info(
+        f"New tournament announcement!")
     lines = message.content.lower().splitlines()
     rank_range_found = False
     ping_list = []
@@ -147,7 +162,6 @@ async def on_message(message):
         else:
             max_rank = int(rank_text.split("-")[0].replace(",", ""))
             min_rank = int(rank_text.split("-")[1].replace(",", ""))
-        print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
         for user, properties in users_dict.items():
             if properties["tournament_ping_preference"]:
                 if user in guild_members:
@@ -184,9 +198,13 @@ async def on_message(message):
                 break
 
     if not rank_range_found:
+        logger.info(
+            f"Rank range not found...")
         return
 
     if len(ping_list) == 0:
+        logger.info(
+            f"Noone to ping ranks between {rank_range}!")
         return
 
     ping_text = ""
@@ -307,7 +325,7 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
 async def on_ready():
     global prefix_file, prefixes
 
-    send_image.start()
+    refresh_token.start()
 
     print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} - Bot starting!!")
     if os.path.exists(prefix_file):
@@ -537,8 +555,8 @@ async def recent(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
-                                                                  bmap_data,
-                                                                  cover_from_cache)
+                                                                        bmap_data,
+                                                                        cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -656,8 +674,8 @@ async def recent_best(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
-                                                                  bmap_data,
-                                                                  cover_from_cache)
+                                                                        bmap_data,
+                                                                        cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -818,8 +836,8 @@ async def show_top_scores(ctx, *args):
         put_recent_on_file(bmap_id, channel_id)
         cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
         recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, score_data, cover_img_bytes,
-                                                                      bmap_data,
-                                                                      cover_from_cache)
+                                                                            bmap_data,
+                                                                            cover_from_cache)
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
         title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -903,9 +921,10 @@ async def compare(ctx, *args):
 
     if len(scores_data) == 1:
         cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, scores_data[0], cover_img_bytes,
-                                                                      bmap_data,
-                                                                      cover_from_cache)
+        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, scores_data[0],
+                                                                            cover_img_bytes,
+                                                                            bmap_data,
+                                                                            cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
@@ -1123,4 +1142,5 @@ if __name__ == "__main__":
         googleclouddebugger.enable(module='toxic_bot', version='v1.0')
     except ImportError:
         pass
+
     client.run(TOKEN)

@@ -817,28 +817,25 @@ def draw_chat_lines(chat):
 
 
 async def get_turkish_chat(limit=10):
-    chat_api_url = "https://osu.ppy.sh/community/chat/channels/1397/messages"
+    chat_api_url = "https://osu.ppy.sh/api/v2/chat/channels/1397/messages"
     headers = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-        "Cookie": os.environ["COOKIE"],
-        'User-Agent': "PostmanRuntime/7.22.0"
     }
+    params = {"limit": limit}
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(chat_api_url, headers=headers) as chat_rsp:
+        async with session.get(chat_api_url, headers=headers, params=params) as chat_rsp:
             chat = await chat_rsp.json()
 
     return chat[-limit:]
 
 
 async def get_country_rankings_v2(bmap_id, mods):
-    country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
+    country_url = f"https://osu.ppy.sh/api/v2/beatmaps/{bmap_id}/scores"
     mods = mods.upper()
     mods_array = [("mods[]", mods[i:i + 2]) for i in range(0, len(mods), 2)]
     header = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-        "Cookie": os.environ["COOKIE"],
-        'User-Agent': "PostmanRuntime/7.22.0"
     }
     mods_array.append(("type", "country"))
     mods_array.append(("mode", "osu"))
@@ -1127,7 +1124,15 @@ async def draw_user_play(player_name, play_data, background_image, bmap_data, fr
 
     mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
-    pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo)
+    pp_raw_from_oppai, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo)
+
+    if "pp" in play_data:
+        if play_data["pp"] is None:
+            pp_raw = pp_raw_from_oppai
+        else:
+            pp_raw = float(play_data["pp"])
+    else:
+        pp_raw = pp_raw_from_oppai
 
     acc = get_acc(count300, count100, count50, count_miss)
 
@@ -1280,29 +1285,29 @@ async def get_and_save_user_assets(user_data, achievement_data):
             assets.append(asset)
 
     medals = []
-    achievements = user_data["user_achievements"][:3]
-    for achi in achievements:
-        achievement_id = achi["achievement_id"]
-        for ach in achievement_data:
-            if ach["id"] == achievement_id:
-                medal_url = ach["icon_url"]
-                break
-        filename = medal_url.split("/")[-1]
-        filename = filename.replace("?", "")
-        medal_path = os.path.join(medals_folder, filename)
+    #achievements = user_data["user_achievements"][:3]
+    #for achi in achievements:
+    #    achievement_id = achi["achievement_id"]
+    #    for ach in achievement_data:
+    #        if ach["achievement_id"] == achievement_id:
+    #            medal_url = ach["icon_url"]
+    #            break
+    #    filename = medal_url.split("/")[-1]
+    #    filename = filename.replace("?", "")
+    #    medal_path = os.path.join(medals_folder, filename)
 
         # If it exists in cache, read from cache
-        if os.path.exists(medal_path):
-            medals.append(Image.open(medal_path))
+    #    if os.path.exists(medal_path):
+    #        medals.append(Image.open(medal_path))
 
         # Else, save to cache
-        else:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(medal_url) as medal_rsp:
-                    medal_img_data = await medal_rsp.read()
-            medal = Image.open(io.BytesIO(medal_img_data))
-            medal.save(medal_path)
-            medals.append(medal)
+    #    else:
+    #        async with aiohttp.ClientSession() as session:
+    #            async with session.get(medal_url) as medal_rsp:
+    #                medal_img_data = await medal_rsp.read()
+    #        medal = Image.open(io.BytesIO(medal_img_data))
+    #        medal.save(medal_path)
+    #        medals.append(medal)
 
     return assets, medals
 
@@ -1469,17 +1474,22 @@ def draw_level_bar(level, draw):
 
 
 async def get_osu_user_web_profile(osu_username):
+    apiv1_url = "https://osu.ppy.sh/api/get_user"
+    params = {"k": OSU_API,
+              "u": osu_username,
+              "m": 0}
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://osu.ppy.sh/users/{osu_username}/osu") as user_rsp:
-            userpage_content = await user_rsp.read()
-    soup = BeautifulSoup(userpage_content, 'html.parser')
-    try:
-        json_user = soup.find(id="json-user").string
-        json_achievements = soup.find(id="json-achievements").string
-    except:
-        raise Exception(f"`{osu_username}` adlı kişi osu!'da kayıtlı değil.")
-    user_dict = json.loads(json_user)
-    achievements_dict = json.loads(json_achievements)
+        async with session.get(apiv1_url, params=params) as user_rsp:
+            user = await user_rsp.json()
+
+    user_id = user[0]["user_id"]
+
+    apiv2_url = f"https://osu.ppy.sh/api/v2/users/{user_id}/osu"
+    header = {"Authorization": 'Bearer ' + os.environ["OAUTH2_TOKEN"]}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(apiv2_url, headers=header) as user_rsp:
+            user_dict = await user_rsp.json()
+    achievements_dict = user_dict["user_achievements"]
 
     return user_dict, achievements_dict
 
