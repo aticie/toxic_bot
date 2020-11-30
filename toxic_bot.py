@@ -13,7 +13,6 @@ import logging
 
 @tasks.loop(hours=8)
 async def refresh_token():
-
     with open("oauth2_token.json", "r") as f:
         tokens = json.load(f)
 
@@ -90,135 +89,6 @@ async def get_user_info(username):
     user_dict = json.loads(json_user)
 
     return user_dict
-
-
-@client.command(name='update_user_list')
-@commands.is_owner()
-async def update_users(ctx):
-    await ctx.send("Updating users")
-    with open(os.path.join("Users", "link_list.json"), "r") as f:
-        user_links = json.load(f)
-
-    for k, v in user_links.items():
-        user_links[k] = {"osu_username": v, "tournament_ping_preference": False, "osu_rank": 0, "osu_badges": 0,
-                         "last_updated": datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_links, f)
-
-    os.remove(os.path.join("Users", "link_list.json"))
-    return
-
-
-@client.command(aliases=['osutr', 'osuturkiye'])
-async def get_osutr_chat(ctx, lim=10):
-    if lim > 50:
-        lim = 50
-    chat = await get_turkish_chat(lim)
-    image = draw_chat_lines(chat)
-    arr = io.BytesIO()
-    image.save(arr, format='PNG')
-    arr.seek(0)
-    file = discord.File(arr, 'chat.png')
-    await ctx.send(file=file)
-    del image
-    del arr
-
-    return
-
-
-@client.event
-async def on_message(message):
-    await client.process_commands(message)
-    channel_id = message.channel.id
-    if not (channel_id == 602863040756580361 or channel_id == 609718050543108135):
-        return
-
-    logger.info(
-        f"New tournament announcement!")
-    lines = message.content.lower().splitlines()
-    rank_range_found = False
-    ping_list = []
-
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        users_dict = json.load(f)
-
-    guild_members = [str(member.id) for member in message.guild.members]
-
-    def populate_ping_list(users_dict, guild_members, ping_list, rank_text):
-        bws = False
-        if "(bws)" in rank_text:
-            rank_text = rank_text.replace("(bws)", "")
-            bws = True
-
-        if "(" in rank_text:
-            open_parentheses = rank_text.find("(")
-            rank_text = rank_text[:open_parentheses]
-
-        rank_text = rank_text.rstrip()
-        if rank_text.endswith("+"):
-            max_rank = int(rank_text.replace("+", "").replace(",", ""))
-            min_rank = 10000000
-        else:
-            max_rank = int(rank_text.split("-")[0].replace(",", ""))
-            min_rank = int(rank_text.split("-")[1].replace(",", ""))
-        for user, properties in users_dict.items():
-            if properties["tournament_ping_preference"]:
-                if user in guild_members:
-                    user_rank = int(properties["osu_rank"])
-                    user_badges = int(properties["osu_badges"])
-                    if bws:
-                        user_rank = pow(user_rank, (pow(0.9887, (user_badges * (user_badges + 1) / 2))))
-
-                    if min_rank > user_rank > max_rank:
-                        ping_list.append(user)
-
-        return ping_list
-
-    for line_no, line in enumerate(lines):
-        idx = line.find("rank range:")
-        if not idx == -1:
-            rank_range = line[idx + 11:]
-
-            if "no rank limit" in rank_range:
-                rank_range = "1 - 10000000"
-
-            if len(rank_range) < 3:
-                for multiline in lines[line_no + 1:]:
-                    try:
-                        rank_text = multiline.split("|")[1]
-                        ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_text)
-                    except:
-                        break
-                    rank_range_found = True
-                break
-            else:
-                ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_range)
-                rank_range_found = True
-                break
-
-    if not rank_range_found:
-        logger.info(
-            f"Rank range not found...")
-        return
-
-    if len(ping_list) == 0:
-        logger.info(
-            f"Noone to ping ranks between {rank_range}!")
-        return
-
-    ping_text = ""
-    for user in ping_list:
-        ping_text += f" {client.get_user(int(user)).mention}"
-
-    ping_text += " Bu turnuvaya katılabiliyorsun"
-    ping_text += "uz!" if len(ping_list) > 1 else "!"
-
-    ping_text += " Sana uygun turnuvalardan haberdar olmak için profilini linkleyip `*tourney_ping_on` yazman yeterli.\n Ayrılmak için `*tourney_ping_off`"
-
-    await message.channel.send(ping_text)
-
-    return
 
 
 @client.command(name='restart')
@@ -319,6 +189,13 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
 
             await msg.clear_reactions()
             await msg.edit(embed=embed2)
+
+
+@client.event
+async def on_command_error(ctx, exception):
+    if isinstance(exception, commands.CommandOnCooldown):
+        await ctx.send(
+            f'Bu komutun kullanımı sınırlıdır. Lütfen {exception.retry_after:.2f}sn sonra deneyin. :pensive:')
 
 
 @client.event
@@ -426,6 +303,7 @@ async def check_args_for_map(ctx, args):
 
 
 @client.command(name='map')
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def map(ctx, *args):
     logger.info(
         f"Map called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -458,52 +336,8 @@ async def map(ctx, *args):
     return
 
 
-@client.command(name='tourney_ping_on')
-@commands.cooldown(1, 30, commands.BucketType.user)
-async def tourney_ping_on(ctx):
-    user_discord_id = ctx.author.id
-    user_discord_id = str(user_discord_id)
-    user_properties = get_value_from_dbase(user_discord_id, "username")
-    if user_properties == -1:
-        ctx.command.reset_cooldown(ctx)
-        await ctx.send("Önce profilini linkle: `*link <username>`")
-    osu_username = user_properties["osu_username"]
-    user_data, _ = await get_osu_user_web_profile(osu_username)
-
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        user_dict = json.load(f)
-
-    user_dict[user_discord_id]["tournament_ping_preference"] = True
-    user_dict[user_discord_id]["osu_rank"] = user_data["statistics"]["rank"]["global"]
-    user_dict[user_discord_id]["osu_badges"] = len(user_data["badges"])
-    user_dict[user_discord_id]["last_updated"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_dict, f)
-
-    await ctx.send(f"{ctx.author.mention} artık sana uygun turnuva paylaşıldığında haberin olacak!")
-    return
-
-
-@client.command(name='tourney_ping_off')
-async def tourney_ping_off(ctx):
-    user_discord_id = ctx.author.id
-    user_discord_id = str(user_discord_id)
-    user_properties = get_value_from_dbase(user_discord_id, "username")
-    osu_username = user_properties["osu_username"]
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        user_dict = json.load(f)
-
-    user_dict[user_discord_id]["tournament_ping_preference"] = False
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_dict, f)
-
-    await ctx.send(f"`{osu_username}` turnuva için pinglenmeyecek... :pensive:")
-    return
-
-
 @client.command(name='osulink', aliases=['link'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def link(ctx, *args):
     logger.info(f"Link called from: {ctx.message.guild.name} - {ctx.message.channel.name}")
     user_discord_id = ctx.author.id
@@ -520,6 +354,7 @@ async def link(ctx, *args):
 
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rcent', 'rcnt', 'rec', 'rc', 'r'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def recent(ctx, *args):
     logger.info(
         f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)} for {ctx.author.display_name}")
@@ -592,6 +427,7 @@ async def recent(ctx, *args):
 
 
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def recent_best(ctx, *args):
     logger.info(
         f"Recent Best called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
@@ -712,6 +548,7 @@ async def recent_best(ctx, *args):
 
 
 @client.command(name='osu')
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_osu_profile(ctx, *args):
     logger.info(
         f"Osu profile request called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
@@ -874,6 +711,7 @@ async def show_top_scores(ctx, *args):
 
 
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def compare(ctx, *args):
     logger.info(
         f"Compare called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -987,6 +825,7 @@ async def compare(ctx, *args):
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_map_score(ctx, *args):
     logger.info(
         f"Scores called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -1015,7 +854,7 @@ async def show_map_score(ctx, *args):
         player_name = args[1]
     except:
         user_properties = get_value_from_dbase(author_id, "username")
-        osu_username = user_properties["osu_username"]
+        player_name = user_properties["osu_username"]
 
     if player_name == -1:
         await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -1069,7 +908,7 @@ async def show_map_score(ctx, *args):
 
 
 @client.command(name='country', aliases=['ctr', 'ct'])
-@commands.cooldown(1, 10, commands.BucketType.user)
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_country(ctx, *args):
     logger.info(
         f"Country called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
