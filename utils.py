@@ -754,6 +754,7 @@ async def get_cover_image(bmap_setid):
                 cover_img_data = io.BytesIO()
                 cover_img = Image.new('RGBA', (900, 250), (45, 45, 45, 255))
                 cover_img.save(cover_img_data, format='PNG')
+                cover_img_data = cover_img_data.getvalue()
 
     return cover_img_data, False
 
