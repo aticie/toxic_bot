@@ -748,7 +748,12 @@ async def get_cover_image(bmap_setid):
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     async with aiohttp.ClientSession() as session:
         async with session.get(cover_url) as cover_rsp:
-            cover_img_data = await cover_rsp.read()
+            if cover_rsp.status == 200:
+                cover_img_data = await cover_rsp.read()
+            else:
+                cover_img_data = io.BytesIO()
+                cover_img = Image.new('RGBA', (900, 250), (45, 45, 45, 255))
+                cover_img.save(cover_img_data, format='PNG')
 
     return cover_img_data, False
 
