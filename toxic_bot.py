@@ -32,13 +32,6 @@ async def refresh_token():
     os.environ["OAUTH2_TOKEN"] = new_tokens["access_token"]
     return
 
-
-discord_logger = logging.getLogger('discord')
-discord_logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-discord_logger.addHandler(handler)
-
 TOKEN = os.environ["DISCORD_TOKEN"]
 prefix_file = os.path.join("Users", "prefixes.json")
 prefixes = {}
@@ -369,6 +362,8 @@ async def recent(ctx, *args):
             return
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     recent_play = await get_recent(osu_username)
 
@@ -451,6 +446,8 @@ async def recent_best(ctx, *args):
         osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1:
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -622,6 +619,8 @@ async def show_top_scores(ctx, *args):
                 osu_username = user_properties["osu_username"]
         else:
             osu_username = " ".join(args)
+            if osu_username.startswith('<@!'):
+                osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1 or osu_username == "":
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -734,6 +733,8 @@ async def compare(ctx, *args):
         osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1:
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -857,9 +858,12 @@ async def show_map_score(ctx, *args):
     author_id = ctx.author.id
     try:
         player_name = args[1]
+        if player_name.startswith('<@!'):
+            player_name = get_value_from_dbase(player_name[3:-1], "username")["osu_username"]
     except:
         user_properties = get_value_from_dbase(author_id, "username")
         player_name = user_properties["osu_username"]
+
 
     if player_name == -1:
         await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
