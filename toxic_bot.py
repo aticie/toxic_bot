@@ -564,6 +564,11 @@ async def show_osu_profile(ctx, *args):
         args = (osu_username,)
 
     for osu_username in args:
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
+            if osu_username == -1:
+                await ctx.send(f"{osu_username} kendini linklememiş :pensive:")
+                continue
         real_uname = await get_osu_user_data(osu_username)
         if real_uname is None:
             await ctx.send(f"`{osu_username}` bulunamadı... :pensive:")
