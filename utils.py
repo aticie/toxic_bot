@@ -1379,8 +1379,8 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     banner.alpha_composite(glob, (100, 45))
 
     statistics = user_data["statistics"]
-    global_rank = statistics["rank"]["global"]
-    country_rank = statistics["rank"]["country"]
+    global_rank = statistics["global_rank"]
+    country_rank = statistics["country_rank"]
     player_pp = statistics["pp"]
     # Print user data onto banner
     d = ImageDraw.Draw(banner)

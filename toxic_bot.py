@@ -190,6 +190,13 @@ async def on_command_error(ctx, exception):
         await ctx.send(
             f'Bu komutun kullanımı sınırlıdır. Lütfen {exception.retry_after:.2f}sn sonra deneyin. :pensive:')
 
+    else:
+        # Handle OAUTH2_TOKEN Key Error
+        if isinstance(exception.original, KeyError):
+            if exception.original.args[0] == 'OAUTH2_TOKEN':
+                await ctx.send(f'Henüz hazır değilim biraz sonra dener misin? :pensive:')
+        logger.error(f'Command errored with {exception}')
+
 
 @client.event
 async def on_ready():
@@ -197,7 +204,7 @@ async def on_ready():
 
     refresh_token.start()
 
-    print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} - Bot starting!!")
+    logger.debug(f"Bot starting!!")
     if os.path.exists(prefix_file):
         with open(prefix_file, "r") as f:
             prefixes = json.load(f)
