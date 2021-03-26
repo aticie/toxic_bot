@@ -70,12 +70,14 @@ async def on_guild_join(guild):
 async def on_voice_state_update(member, before, after):
     before_channel = before.channel
     after_channel = after.channel
+
+    guild_channels = client.get_guild(571853176752308244).channels
     channel = client.get_channel(825109303710318592)
-    if before_channel is None:
+    if before_channel is None and after_channel in guild_channels:
         embed = discord.Embed(title="Voice Channel Join",
                               description=f'{member.mention} joined the voice channel {after_channel.name}',
                               color=discord.Colour.dark_green())
-    elif after_channel is None:
+    elif after_channel is None and before_channel in guild_channels:
         embed = discord.Embed(title="Voice Channel Leave",
                               description=f'{member.mention} left the voice channel {before_channel.name}',
                               color=discord.Colour.dark_red())
