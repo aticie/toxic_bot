@@ -10,6 +10,8 @@ from aiohttp import FormData
 from utils import *
 import logging
 
+discord.Intents.voice_states = True
+
 
 @tasks.loop(hours=8)
 async def refresh_token():
@@ -31,6 +33,7 @@ async def refresh_token():
 
     os.environ["OAUTH2_TOKEN"] = new_tokens["access_token"]
     return
+
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 prefix_file = os.path.join("Users", "prefixes.json")
@@ -61,6 +64,27 @@ client = commands.Bot(command_prefix=get_prefix, case_insensitive=True)
 async def on_guild_join(guild):
     await set_prefix(guild, "*")
     return
+
+
+@client.event
+async def on_voice_state_update(member, before, after):
+    before_channel = before.channel
+    after_channel = after.channel
+    channel = client.get_channel(825109303710318592)
+    if before_channel is None:
+        embed = discord.Embed(title="Voice Channel Join",
+                              description=f'{member.mention} joined the voice channel {after_channel.name}',
+                              color=discord.Colour.dark_green())
+    elif after_channel is None:
+        embed = discord.Embed(title="Voice Channel Leave",
+                              description=f'{member.mention} left the voice channel {before_channel.name}',
+                              color=discord.Colour.dark_red())
+    else:
+        return
+
+    now = datetime.now()
+    embed.set_footer(text=now.strftime("%Y-%m-%d %H:%M:%S"), icon_url=member.avatar_url)
+    await channel.send(embed=embed)
 
 
 def parse_args():
@@ -870,7 +894,6 @@ async def show_map_score(ctx, *args):
     except:
         user_properties = get_value_from_dbase(author_id, "username")
         player_name = user_properties["osu_username"]
-
 
     if player_name == -1:
         await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
