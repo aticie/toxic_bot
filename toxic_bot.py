@@ -11,6 +11,7 @@ from utils import *
 import logging
 
 discord.Intents.voice_states = True
+discord.Intents.messages = True
 
 
 @tasks.loop(hours=8)
@@ -87,6 +88,19 @@ async def on_voice_state_update(member, before, after):
     now = datetime.now()
     embed.set_footer(text=now.strftime("%Y-%m-%d %H:%M:%S"), icon_url=member.avatar_url)
     await channel.send(embed=embed)
+
+
+@client.event
+async def on_message_delete(message):
+    guild_channels = client.get_guild(571853176752308244).channels
+    channel = client.get_channel(825139115229315082)
+
+    message_channel = message.channel
+    if message_channel in guild_channels:
+        embed = discord.Embed(title='MESAJINI SİLDİ LAN',
+                              description=f'{message.author.mention}: {message.content}')
+        await channel.send(embed=embed)
+    return
 
 
 def parse_args():
