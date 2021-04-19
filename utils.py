@@ -1275,6 +1275,7 @@ async def get_and_save_user_assets(user_data, achievement_data):
 
         filename = asset_url.split("/")[-1]
         if '?' in filename:
+            print(filename)
             filename = filename.split("?")[0]
         asset_path = os.path.join(assets_folder, filename)
 
