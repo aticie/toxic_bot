@@ -91,13 +91,16 @@ async def on_voice_state_update(member, before, after):
 
 
 @client.event
-async def on_message_delete(message):
+async def on_message_delete(message: discord.Message):
     guild_channels = client.get_guild(571853176752308244).channels
     channel = client.get_channel(825139115229315082)
 
     message_channel = message.channel
+    if message.author.id == 234395307759108106:
+        return
+
     if message_channel in guild_channels:
-        embed = discord.Embed(title='MESAJINI SİLDİ LAN',
+        embed = discord.Embed(title=f'#{message_channel}',
                               description=f'{message.author.mention}: {message.content}')
         await channel.send(embed=embed)
     return
