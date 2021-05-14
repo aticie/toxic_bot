@@ -1,16 +1,19 @@
 import colorsys
 import io
 import json
+import logging
 import os
+import random
 import time
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-import random
+
+import aiohttp
 import cv2
 import numpy as np
-import aiohttp
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
 from oppai import *
+
+logger = logging.getLogger('Bot-Main')
 
 USER_LINK_FILE = os.path.join("Users", "user_properties.json")
 RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
@@ -1274,9 +1277,7 @@ async def get_and_save_user_assets(user_data, achievement_data):
     for asset_url in asset_urls:
 
         filename = asset_url.split("/")[-1]
-        print(filename)
-        if '?' in filename:
-            filename = filename.split("?")[0]
+        filename = filename.replace('?', '')
         asset_path = os.path.join(assets_folder, filename)
 
         # If it exists in cache, read from cache
