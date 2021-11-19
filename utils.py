@@ -1,3 +1,4 @@
+import asyncio
 import colorsys
 import io
 import json
@@ -10,8 +11,8 @@ from datetime import datetime, timedelta
 import aiohttp
 import cv2
 import numpy as np
+import pp_calc
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
-from oppai import *
 
 logger = logging.getLogger('Bot-Main')
 
@@ -322,14 +323,11 @@ async def image_from_cache_or_web(thing_id, url, folder):
     return image
 
 
-async def beatmap_from_cache_or_web(beatmap_id):
-    if not os.path.exists("Beatmaps"):
-        os.mkdir("Beatmaps")
+async def beatmap_from_cache_or_web(beatmap_id: int) -> str:
+    os.makedirs("Beatmaps", exist_ok=True)
     beatmap_id = str(beatmap_id)
     url = "https://osu.ppy.sh/osu/" + beatmap_id
     path = os.path.join("Beatmaps", beatmap_id + ".osu")
-    ez = ezpp_new()
-    ezpp_set_autocalc(ez, 1)
 
     if not os.path.exists(path):
         try:
@@ -352,57 +350,43 @@ async def beatmap_from_cache_or_web(beatmap_id):
                         with open(path, "w", encoding='utf-8') as f:
                             f.write(contents.decode("utf-8"))
 
-    ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
+    beatmap_filepath = 'Beatmaps/{}.osu'.format(beatmap_id)
 
-    return ez
+    return beatmap_filepath
 
 
-def bmap_info_from_oppai(ez, mods):
+def bmap_info_from_oppai(bmap_filepath, mods):
     mods = int(mods)
-    ezpp_set_mods(ez, mods)
-    bmap = {"stars": ezpp_stars(ez),
-            "max_combo": ezpp_max_combo(ez),
-            "ar": ezpp_ar(ez),
-            "od": ezpp_od(ez),
-            "hp": ezpp_hp(ez),
-            "cs": ezpp_cs(ez)}
+    bmap_info = pp_calc.get_beatmap_info(bmap_filepath, mods)
+
+    bmap = {"stars": bmap_info['stars'],
+            "max_combo": int(bmap_info['max_combo']),
+            "ar": bmap_info['ar'],
+            "od": bmap_info['od'],
+            "hp": bmap_info['hp'],
+            "cs": bmap_info['cs'],}
     return bmap
 
 
-def calculate_pp_of_score(ez, count100, count50, countmiss, mods, combo):
+def calculate_pp_of_score(bmap_filepath, count100, count50, countmiss, mods, combo, player_acc):
     count100 = int(count100)
     count50 = int(count50)
     countmiss = int(countmiss)
     mods = int(mods)
     combo = int(combo)
-    ezpp_set_mods(ez, mods)
-    ezpp_set_accuracy(ez, count100, count50)
-    ezpp_set_combo(ez, combo)
-    ezpp_set_nmiss(ez, countmiss)
-    pp_raw = ezpp_pp(ez)
-    ezpp_set_combo(ez, ezpp_max_combo(ez))
-    ezpp_set_nmiss(ez, 0)
-    pp_fc = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 95)
-    pp_95 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 100)
-    pp_ss = ezpp_pp(ez)
+    pp_raw = pp_calc.calculate_pp_with_counts(bmap_filepath, count100, count50, countmiss, combo, mods)
+    pp_fc = pp_calc.calculate_pp_with_accuracy(bmap_filepath, player_acc, mods)
+    pp_95 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 95, mods)
+    pp_ss = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 100, mods)
 
     return pp_raw, pp_fc, pp_95, pp_ss
 
 
-def calculate_pp_of_map(ez, mods):
-    ezpp_set_mods(ez, mods)
-    ezpp_set_combo(ez, ezpp_max_combo(ez))
-    ezpp_set_nmiss(ez, 0)
-    ezpp_set_accuracy_percent(ez, 95)
-    pp_95 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 98)
-    pp_98 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 99)
-    pp_99 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 100)
-    pp_ss = ezpp_pp(ez)
+def calculate_pp_of_map(bmap_filepath, mods):
+    pp_ss = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 100, mods)
+    pp_99 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 99, mods)
+    pp_98 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 98, mods)
+    pp_95 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 95, mods)
 
     return pp_ss, pp_99, pp_98, pp_95
 
@@ -971,7 +955,8 @@ def add_embed_description_on_compare(scores, offset, bmp):
         player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
-        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods, player_combo)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods, player_combo,
+                                                            player_acc)
         try:
             player_pp = float(score["pp"])
         except:
@@ -1010,7 +995,7 @@ async def add_embed_description_on_osutop(scores, offset):
         player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
-        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods_int, player_combo)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods_int, player_combo, player_acc)
         player_pp = float(score["pp"])
         date = score["created_at"]
         timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%dT%H:%M:%S+00:00'))
@@ -1032,7 +1017,7 @@ def draw_map_completion(d, bmp, play_data):
     count50 = int(play_data["count50"])
     count_miss = int(play_data["countmiss"])
     total_obj_on_play = count300 + count100 + count50 + count_miss
-    total_obj_on_map = ezpp_nobjects(bmp)
+    total_obj_on_map = total_obj_on_play
     completion = total_obj_on_play / total_obj_on_map
     font_1 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 14 * 2)
     font_2 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 11 * 2)
@@ -1129,11 +1114,12 @@ async def draw_user_play(player_name, play_data, background_image, bmap_data, fr
     count50 = play_data["count50"]
     count_miss = play_data["countmiss"]
     play_combo = play_data["maxcombo"]
+    player_acc = get_acc(count300, count100, count50, count_miss)
     score = make_readable_score(play_data["score"])
 
     mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
-    pp_raw_from_oppai, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo)
+    pp_raw_from_oppai, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo, player_acc=player_acc)
 
     if "pp" in play_data:
         if play_data["pp"] is None:
@@ -1294,8 +1280,8 @@ async def get_and_save_user_assets(user_data, achievement_data):
             assets.append(asset)
 
     medals = []
-    #achievements = user_data["user_achievements"][:3]
-    #for achi in achievements:
+    # achievements = user_data["user_achievements"][:3]
+    # for achi in achievements:
     #    achievement_id = achi["achievement_id"]
     #    for ach in achievement_data:
     #        if ach["achievement_id"] == achievement_id:
@@ -1305,11 +1291,11 @@ async def get_and_save_user_assets(user_data, achievement_data):
     #    filename = filename.replace("?", "")
     #    medal_path = os.path.join(medals_folder, filename)
 
-        # If it exists in cache, read from cache
+    # If it exists in cache, read from cache
     #    if os.path.exists(medal_path):
     #        medals.append(Image.open(medal_path))
 
-        # Else, save to cache
+    # Else, save to cache
     #    else:
     #        async with aiohttp.ClientSession() as session:
     #            async with session.get(medal_url) as medal_rsp:
@@ -1545,5 +1531,7 @@ def parse_recent_play(score_data):
 
 
 if __name__ == "__main__":
-    bmap_data = get_bmap_data(978026)
-    get_country_rankings_v2(bmap_data)
+    bmap_filepath = asyncio.run(beatmap_from_cache_or_web(2350281))
+    print(pp_calc.calculate_pp_with_accuracy(bmap_filepath, 98.797965788, 72))
+    print(pp_calc.calculate_pp_with_counts(bmap_filepath, 13, 0, 0, 1239, 72))
+    print(pp_calc.get_beatmap_info(bmap_filepath, 72))
