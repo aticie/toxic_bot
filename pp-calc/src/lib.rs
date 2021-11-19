@@ -3,6 +3,9 @@ use rosu_pp::DifficultyAttributes::Osu;
 use rosu_pp::{Beatmap, BeatmapExt};
 use std::{collections::BTreeMap, fs::File};
 
+/// Calculates pp for a beatmap. 
+/// 
+/// If combo is not specified, it will be taken from the beatmap. 
 #[pyfunction]
 #[pyo3(text_signature = "(file_path, count_100, count_50, count_miss, combo, mods, /)")]
 fn calculate_pp_with_counts(
@@ -26,14 +29,30 @@ fn calculate_pp_with_counts(
 
     let result = map
         .pp()
+        .mods(mods.try_into().unwrap_or(0))
+        .calculate();
+
+    let map_combo = if combo == 0 {
+        if let Osu(diff_attr) = result.difficulty_attributes() {
+            diff_attr.max_combo
+        } else {
+            0
+        }
+    } else {
+        combo
+    };
+
+    let new_result = map
+        .pp()
         .mods(mods.try_into().unwrap_or(0)) // HDHR
-        .combo(combo)
+        .attributes(result)
+        .combo(map_combo)
         .misses(count_miss)
         .n100(count_100)
         .n50(count_50)
         .calculate();
 
-    Ok(result.pp())
+    Ok(new_result.pp())
 }
 
 #[pyfunction]
