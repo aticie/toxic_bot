@@ -22,3 +22,5 @@ __pycache__
 /Fonts/HelveticaNeueIt.ttf
 /Fonts/HelveticaNeueLt.ttf
 /Fonts/HelveticaNeueMed.ttf
+/pp-calc/Cargo.lock
+/pp-calc/target
