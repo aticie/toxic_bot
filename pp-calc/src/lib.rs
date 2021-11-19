@@ -4,6 +4,7 @@ use rosu_pp::{Beatmap, BeatmapExt};
 use std::{collections::BTreeMap, fs::File};
 
 #[pyfunction]
+#[pyo3(text_signature = "(file_path, count_100, count_50, count_miss, combo, mods. /)")]
 fn calculate_pp_with_counts(
     file_path: &str,
     count_100: usize,
