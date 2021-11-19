@@ -4,29 +4,37 @@ import subprocess
 import sys
 import discord
 from discord.ext import commands, tasks
+import aiohttp
+from aiohttp import FormData
 
 from utils import *
 import logging
 
-@tasks.loop(seconds=60.0)
-async def send_image():
-    print("Sending image!!")
-    random_img = Image.fromarray(np.uint8(np.random.random((100, 100,3))*255))
-    img_to_send = io.BytesIO()
+discord.Intents.voice_states = True
+discord.Intents.messages = True
 
-    embed = discord.Embed()
-    channel = client.get_channel(id=609718050543108135)
-    random_img.save(img_to_send, format="JPEG")
-    img_to_send.seek(0)
-    file = discord.File(img_to_send, "recent.jpg")
-    embed.set_image(url="attachment://recent.jpg")
-    await channel.send(embed=embed, file=file)
 
-discord_logger = logging.getLogger('discord')
-discord_logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-discord_logger.addHandler(handler)
+@tasks.loop(hours=8)
+async def refresh_token():
+    with open("oauth2_token.json", "r") as f:
+        tokens = json.load(f)
+
+    refresh_url = "https://osu.ppy.sh/oauth/token"
+    data = FormData()
+    data.add_field("grant_type", "refresh_token")
+    data.add_field("client_id", "703")
+    data.add_field("client_secret", os.environ["CLIENT_SECRET"])
+    data.add_field("refresh_token", tokens["refresh_token"])
+    async with aiohttp.ClientSession() as session:
+        async with session.post(refresh_url, data=data) as r:
+            new_tokens = await r.json()
+
+    with open("oauth2_token.json", "w") as f:
+        json.dump(new_tokens, f)
+
+    os.environ["OAUTH2_TOKEN"] = new_tokens["access_token"]
+    return
+
 
 TOKEN = os.environ["DISCORD_TOKEN"]
 prefix_file = os.path.join("Users", "prefixes.json")
@@ -34,7 +42,7 @@ prefixes = {}
 
 logger = logging.getLogger('Bot-Main')
 logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('Bot.log')
+fh = logging.FileHandler('Bot.log', encoding='utf-8')
 ch = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s [%(levelname)s]: %(message)s')
 fh.setFormatter(formatter)
@@ -59,6 +67,45 @@ async def on_guild_join(guild):
     return
 
 
+@client.event
+async def on_voice_state_update(member, before, after):
+    before_channel = before.channel
+    after_channel = after.channel
+
+    guild_channels = client.get_guild(571853176752308244).channels
+    channel = client.get_channel(825109303710318592)
+    if before_channel is None and after_channel in guild_channels:
+        embed = discord.Embed(title="Voice Channel Join",
+                              description=f'{member.mention} joined the voice channel {after_channel.name}',
+                              color=discord.Colour.dark_green())
+    elif after_channel is None and before_channel in guild_channels:
+        embed = discord.Embed(title="Voice Channel Leave",
+                              description=f'{member.mention} left the voice channel {before_channel.name}',
+                              color=discord.Colour.dark_red())
+    else:
+        return
+
+    now = datetime.now()
+    embed.set_footer(text=now.strftime("%Y-%m-%d %H:%M:%S"), icon_url=member.avatar_url)
+    await channel.send(embed=embed)
+
+
+@client.event
+async def on_message_delete(message: discord.Message):
+    guild_channels = client.get_guild(571853176752308244).channels
+    channel = client.get_channel(825139115229315082)
+
+    message_channel = message.channel
+    if message.author.id == 234395307759108106:
+        return
+
+    if message_channel in guild_channels:
+        embed = discord.Embed(title=f'#{message_channel}',
+                              description=f'{message.author.mention}: {message.content}')
+        await channel.send(embed=embed)
+    return
+
+
 def parse_args():
     return
 
@@ -78,129 +125,6 @@ async def get_user_info(username):
     user_dict = json.loads(json_user)
 
     return user_dict
-
-
-@client.command(name='update_user_list')
-@commands.is_owner()
-async def update_users(ctx):
-    await ctx.send("Updating users")
-    with open(os.path.join("Users", "link_list.json"), "r") as f:
-        user_links = json.load(f)
-
-    for k, v in user_links.items():
-        user_links[k] = {"osu_username": v, "tournament_ping_preference": False, "osu_rank": 0, "osu_badges": 0,
-                         "last_updated": datetime.now().strftime("%m/%d/%Y, %H:%M:%S")}
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_links, f)
-
-    os.remove(os.path.join("Users", "link_list.json"))
-    return
-
-
-@client.command(aliases=['osutr', 'osuturkiye'])
-async def get_osutr_chat(ctx, lim=10):
-    if lim > 10:
-        lim = 10
-    chat = await get_turkish_chat(lim)
-    image = draw_chat_lines(chat)
-    arr = io.BytesIO()
-    image.save(arr, format='PNG')
-    arr.seek(0)
-    file = discord.File(arr, 'chat.png')
-    await ctx.send(file=file)
-    del image
-    del arr
-
-    return
-
-
-@client.event
-async def on_message(message):
-    await client.process_commands(message)
-    channel_id = message.channel.id
-    if not (channel_id == 602863040756580361 or channel_id == 676411865592758272):
-        return
-    lines = message.content.lower().splitlines()
-    rank_range_found = False
-    ping_list = []
-
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        users_dict = json.load(f)
-
-    guild_members = [str(member.id) for member in message.guild.members]
-
-    def populate_ping_list(users_dict, guild_members, ping_list, rank_text):
-        bws = False
-        if "(bws)" in rank_text:
-            rank_text = rank_text.replace("(bws)", "")
-            bws = True
-
-        if "(" in rank_text:
-            open_parentheses = rank_text.find("(")
-            rank_text = rank_text[:open_parentheses]
-
-        rank_text = rank_text.rstrip()
-        if rank_text.endswith("+"):
-            max_rank = int(rank_text.replace("+", "").replace(",", ""))
-            min_rank = 10000000
-        else:
-            max_rank = int(rank_text.split("-")[0].replace(",", ""))
-            min_rank = int(rank_text.split("-")[1].replace(",", ""))
-        print(f"{max_rank} - {min_rank} arası oyuncular ekleniyor.")
-        for user, properties in users_dict.items():
-            if properties["tournament_ping_preference"]:
-                if user in guild_members:
-                    user_rank = int(properties["osu_rank"])
-                    user_badges = int(properties["osu_badges"])
-                    if bws:
-                        user_rank = pow(user_rank, (pow(0.9887, (user_badges * (user_badges + 1) / 2))))
-
-                    if min_rank > user_rank > max_rank:
-                        ping_list.append(user)
-
-        return ping_list
-
-    for line_no, line in enumerate(lines):
-        idx = line.find("rank range:")
-        if not idx == -1:
-            rank_range = line[idx + 11:]
-
-            if "no rank limit" in rank_range:
-                rank_range = "1 - 10000000"
-
-            if len(rank_range) < 3:
-                for multiline in lines[line_no + 1:]:
-                    try:
-                        rank_text = multiline.split("|")[1]
-                        ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_text)
-                    except:
-                        break
-                    rank_range_found = True
-                break
-            else:
-                ping_list = populate_ping_list(users_dict, guild_members, ping_list, rank_range)
-                rank_range_found = True
-                break
-
-    if not rank_range_found:
-        return
-
-    if len(ping_list) == 0:
-        return
-
-    ping_text = ""
-    for user in ping_list:
-        ping_text += f" {client.get_user(int(user)).mention}"
-
-    ping_text += " Bu turnuvaya katılabiliyorsun"
-    ping_text += "uz!" if len(ping_list) > 1 else "!"
-
-    ping_text += " Sana uygun turnuvalardan haberdar olmak için profilini linkleyip `*tourney_ping_on` yazman yeterli.\n Ayrılmak için `*tourney_ping_off`"
-
-    await message.channel.send(ping_text)
-
-    return
 
 
 @client.command(name='restart')
@@ -304,12 +228,26 @@ async def add_pages(ctx, msg, data, fixed_fields, bmp=None):
 
 
 @client.event
+async def on_command_error(ctx, exception):
+    if isinstance(exception, commands.CommandOnCooldown):
+        await ctx.send(
+            f'Bu komutun kullanımı sınırlıdır. Lütfen {exception.retry_after:.2f}sn sonra deneyin. :pensive:')
+
+    else:
+        # Handle OAUTH2_TOKEN Key Error
+        if isinstance(exception.original, KeyError):
+            if exception.original.args[0] == 'OAUTH2_TOKEN':
+                await ctx.send(f'Henüz hazır değilim biraz sonra dener misin? :pensive:')
+        logger.error(f'Command errored with {exception}')
+
+
+@client.event
 async def on_ready():
     global prefix_file, prefixes
 
-    send_image.start()
+    refresh_token.start()
 
-    print(f"{datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} - Bot starting!!")
+    logger.debug(f"Bot starting!!")
     if os.path.exists(prefix_file):
         with open(prefix_file, "r") as f:
             prefixes = json.load(f)
@@ -408,6 +346,7 @@ async def check_args_for_map(ctx, args):
 
 
 @client.command(name='map')
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def map(ctx, *args):
     logger.info(
         f"Map called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -440,52 +379,8 @@ async def map(ctx, *args):
     return
 
 
-@client.command(name='tourney_ping_on')
-@commands.cooldown(1, 30, commands.BucketType.user)
-async def tourney_ping_on(ctx):
-    user_discord_id = ctx.author.id
-    user_discord_id = str(user_discord_id)
-    user_properties = get_value_from_dbase(user_discord_id, "username")
-    if user_properties == -1:
-        ctx.command.reset_cooldown(ctx)
-        await ctx.send("Önce profilini linkle: `*link <username>`")
-    osu_username = user_properties["osu_username"]
-    user_data, _ = await get_osu_user_web_profile(osu_username)
-
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        user_dict = json.load(f)
-
-    user_dict[user_discord_id]["tournament_ping_preference"] = True
-    user_dict[user_discord_id]["osu_rank"] = user_data["statistics"]["rank"]["global"]
-    user_dict[user_discord_id]["osu_badges"] = len(user_data["badges"])
-    user_dict[user_discord_id]["last_updated"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_dict, f)
-
-    await ctx.send(f"{ctx.author.mention} artık sana uygun turnuva paylaşıldığında haberin olacak!")
-    return
-
-
-@client.command(name='tourney_ping_off')
-async def tourney_ping_off(ctx):
-    user_discord_id = ctx.author.id
-    user_discord_id = str(user_discord_id)
-    user_properties = get_value_from_dbase(user_discord_id, "username")
-    osu_username = user_properties["osu_username"]
-    with open(os.path.join("Users", "user_properties.json"), "r") as f:
-        user_dict = json.load(f)
-
-    user_dict[user_discord_id]["tournament_ping_preference"] = False
-
-    with open(os.path.join("Users", "user_properties.json"), "w") as f:
-        json.dump(user_dict, f)
-
-    await ctx.send(f"`{osu_username}` turnuva için pinglenmeyecek... :pensive:")
-    return
-
-
 @client.command(name='osulink', aliases=['link'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def link(ctx, *args):
     logger.info(f"Link called from: {ctx.message.guild.name} - {ctx.message.channel.name}")
     user_discord_id = ctx.author.id
@@ -502,6 +397,7 @@ async def link(ctx, *args):
 
 
 @client.command(name='recent', aliases=['rs', 'recnet', 'recenet', 'recnt', 'rcent', 'rcnt', 'rec', 'rc', 'r'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def recent(ctx, *args):
     logger.info(
         f"Recent called from: {ctx.message.guild.name} - {ctx.message.channel.name} with args: {' '.join(args)} for {ctx.author.display_name}")
@@ -516,6 +412,8 @@ async def recent(ctx, *args):
             return
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     recent_play = await get_recent(osu_username)
 
@@ -537,8 +435,8 @@ async def recent(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
-                                                                  bmap_data,
-                                                                  cover_from_cache)
+                                                                        bmap_data,
+                                                                        cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -574,6 +472,7 @@ async def recent(ctx, *args):
 
 
 @client.command(name='rb', aliases=[f'rb{i + 1}' for i in range(100)])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def recent_best(ctx, *args):
     logger.info(
         f"Recent Best called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
@@ -597,6 +496,8 @@ async def recent_best(ctx, *args):
         osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1:
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -656,8 +557,8 @@ async def recent_best(ctx, *args):
     bmapset_id = bmap_data["beatmapset_id"]
     cover_img_bytes, cover_from_cache = await get_cover_image(bmapset_id)
     recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, recent_play, cover_img_bytes,
-                                                                  bmap_data,
-                                                                  cover_from_cache)
+                                                                        bmap_data,
+                                                                        cover_from_cache)
     bmap_data["difficultyrating"] = diff_rating
     bmap_data["max_combo"] = max_combo
     title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -694,6 +595,7 @@ async def recent_best(ctx, *args):
 
 
 @client.command(name='osu')
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_osu_profile(ctx, *args):
     logger.info(
         f"Osu profile request called from: {ctx.message.guild.name} - {ctx.message.channel.name} with command:"
@@ -709,6 +611,11 @@ async def show_osu_profile(ctx, *args):
         args = (osu_username,)
 
     for osu_username in args:
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
+            if osu_username == -1:
+                await ctx.send(f"{osu_username} kendini linklememiş :pensive:")
+                continue
         real_uname = await get_osu_user_data(osu_username)
         if real_uname is None:
             await ctx.send(f"`{osu_username}` bulunamadı... :pensive:")
@@ -762,6 +669,8 @@ async def show_top_scores(ctx, *args):
                 osu_username = user_properties["osu_username"]
         else:
             osu_username = " ".join(args)
+            if osu_username.startswith('<@!'):
+                osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1 or osu_username == "":
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -818,8 +727,8 @@ async def show_top_scores(ctx, *args):
         put_recent_on_file(bmap_id, channel_id)
         cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
         recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, score_data, cover_img_bytes,
-                                                                      bmap_data,
-                                                                      cover_from_cache)
+                                                                            bmap_data,
+                                                                            cover_from_cache)
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
         title_text, title_text2, bmap_url, _ = get_embed_text_from_beatmap(bmap_data)
@@ -856,6 +765,7 @@ async def show_top_scores(ctx, *args):
 
 
 @client.command(name='compare', aliases=['cmp', 'c', 'cp'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def compare(ctx, *args):
     logger.info(
         f"Compare called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -873,6 +783,8 @@ async def compare(ctx, *args):
         osu_username = user_properties["osu_username"]
     else:
         osu_username = " ".join(args)
+        if osu_username.startswith('<@!'):
+            osu_username = get_value_from_dbase(osu_username[3:-1], "username")["osu_username"]
 
     if osu_username == -1:
         await ctx.send(f"Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -903,9 +815,10 @@ async def compare(ctx, *args):
 
     if len(scores_data) == 1:
         cover_img_bytes, cover_from_cache = await get_cover_image(bmap_setid)
-        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, scores_data[0], cover_img_bytes,
-                                                                      bmap_data,
-                                                                      cover_from_cache)
+        recent_image, diff_rating, max_combo, is_gif = await draw_user_play(osu_username, scores_data[0],
+                                                                            cover_img_bytes,
+                                                                            bmap_data,
+                                                                            cover_from_cache)
         mods = scores_data[0]["enabled_mods"]
         bmap_data["difficultyrating"] = diff_rating
         bmap_data["max_combo"] = max_combo
@@ -968,6 +881,7 @@ async def compare(ctx, *args):
 
 
 @client.command(name='scores', aliases=['score', 'sc', 's'])
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_map_score(ctx, *args):
     logger.info(
         f"Scores called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -994,9 +908,11 @@ async def show_map_score(ctx, *args):
     author_id = ctx.author.id
     try:
         player_name = args[1]
+        if player_name.startswith('<@!'):
+            player_name = get_value_from_dbase(player_name[3:-1], "username")["osu_username"]
     except:
         user_properties = get_value_from_dbase(author_id, "username")
-        osu_username = user_properties["osu_username"]
+        player_name = user_properties["osu_username"]
 
     if player_name == -1:
         await ctx.send(f"`Kim olduğunu bilmiyorum 😔\nProfilini linklemelisin: `*link heyronii`")
@@ -1050,7 +966,7 @@ async def show_map_score(ctx, *args):
 
 
 @client.command(name='country', aliases=['ctr', 'ct'])
-@commands.cooldown(1, 10, commands.BucketType.user)
+@commands.cooldown(1, 5, commands.BucketType.guild)
 async def show_country(ctx, *args):
     logger.info(
         f"Country called from: {ctx.message.guild.name} - {ctx.message.channel.name} for: {ctx.author.display_name}:")
@@ -1123,4 +1039,5 @@ if __name__ == "__main__":
         googleclouddebugger.enable(module='toxic_bot', version='v1.0')
     except ImportError:
         pass
+
     client.run(TOKEN)

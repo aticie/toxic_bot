@@ -1,16 +1,20 @@
+import asyncio
 import colorsys
 import io
 import json
+import logging
 import os
+import random
 import time
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
-import random
+
+import aiohttp
 import cv2
 import numpy as np
-import aiohttp
+import pp_calc
 from PIL import Image, ImageFilter, ImageFont, ImageDraw
-from oppai import *
+
+logger = logging.getLogger('Bot-Main')
 
 USER_LINK_FILE = os.path.join("Users", "user_properties.json")
 RECENT_DICT_FILE = os.path.join("Users", "recent_list.json")
@@ -319,14 +323,11 @@ async def image_from_cache_or_web(thing_id, url, folder):
     return image
 
 
-async def beatmap_from_cache_or_web(beatmap_id):
-    if not os.path.exists("Beatmaps"):
-        os.mkdir("Beatmaps")
+async def beatmap_from_cache_or_web(beatmap_id: int) -> str:
+    os.makedirs("Beatmaps", exist_ok=True)
     beatmap_id = str(beatmap_id)
     url = "https://osu.ppy.sh/osu/" + beatmap_id
     path = os.path.join("Beatmaps", beatmap_id + ".osu")
-    ez = ezpp_new()
-    ezpp_set_autocalc(ez, 1)
 
     if not os.path.exists(path):
         try:
@@ -349,57 +350,43 @@ async def beatmap_from_cache_or_web(beatmap_id):
                         with open(path, "w", encoding='utf-8') as f:
                             f.write(contents.decode("utf-8"))
 
-    ezpp_dup(ez, 'Beatmaps/{}.osu'.format(beatmap_id))
+    beatmap_filepath = 'Beatmaps/{}.osu'.format(beatmap_id)
 
-    return ez
+    return beatmap_filepath
 
 
-def bmap_info_from_oppai(ez, mods):
+def bmap_info_from_oppai(bmap_filepath, mods):
     mods = int(mods)
-    ezpp_set_mods(ez, mods)
-    bmap = {"stars": ezpp_stars(ez),
-            "max_combo": ezpp_max_combo(ez),
-            "ar": ezpp_ar(ez),
-            "od": ezpp_od(ez),
-            "hp": ezpp_hp(ez),
-            "cs": ezpp_cs(ez)}
+    bmap_info = pp_calc.get_beatmap_info(bmap_filepath, mods)
+
+    bmap = {"stars": bmap_info['stars'],
+            "max_combo": int(bmap_info['max_combo']),
+            "ar": bmap_info['ar'],
+            "od": bmap_info['od'],
+            "hp": bmap_info['hp'],
+            "cs": bmap_info['cs'],}
     return bmap
 
 
-def calculate_pp_of_score(ez, count100, count50, countmiss, mods, combo):
+def calculate_pp_of_score(bmap_filepath, count100, count50, countmiss, mods, combo, player_acc):
     count100 = int(count100)
     count50 = int(count50)
     countmiss = int(countmiss)
     mods = int(mods)
     combo = int(combo)
-    ezpp_set_mods(ez, mods)
-    ezpp_set_accuracy(ez, count100, count50)
-    ezpp_set_combo(ez, combo)
-    ezpp_set_nmiss(ez, countmiss)
-    pp_raw = ezpp_pp(ez)
-    ezpp_set_combo(ez, ezpp_max_combo(ez))
-    ezpp_set_nmiss(ez, 0)
-    pp_fc = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 95)
-    pp_95 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 100)
-    pp_ss = ezpp_pp(ez)
+    pp_raw = pp_calc.calculate_pp_with_counts(bmap_filepath, count100, count50, countmiss, combo, mods)
+    pp_fc = pp_calc.calculate_pp_with_accuracy(bmap_filepath, player_acc, mods)
+    pp_95 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 95, mods)
+    pp_ss = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 100, mods)
 
     return pp_raw, pp_fc, pp_95, pp_ss
 
 
-def calculate_pp_of_map(ez, mods):
-    ezpp_set_mods(ez, mods)
-    ezpp_set_combo(ez, ezpp_max_combo(ez))
-    ezpp_set_nmiss(ez, 0)
-    ezpp_set_accuracy_percent(ez, 95)
-    pp_95 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 98)
-    pp_98 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 99)
-    pp_99 = ezpp_pp(ez)
-    ezpp_set_accuracy_percent(ez, 100)
-    pp_ss = ezpp_pp(ez)
+def calculate_pp_of_map(bmap_filepath, mods):
+    pp_ss = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 100, mods)
+    pp_99 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 99, mods)
+    pp_98 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 98, mods)
+    pp_95 = pp_calc.calculate_pp_with_accuracy(bmap_filepath, 95, mods)
 
     return pp_ss, pp_99, pp_98, pp_95
 
@@ -748,7 +735,13 @@ async def get_cover_image(bmap_setid):
     cover_url = f"https://assets.ppy.sh/beatmaps/{bmap_setid}/covers/cover.jpg"
     async with aiohttp.ClientSession() as session:
         async with session.get(cover_url) as cover_rsp:
-            cover_img_data = await cover_rsp.read()
+            if cover_rsp.status == 200:
+                cover_img_data = await cover_rsp.read()
+            else:
+                cover_img_data = io.BytesIO()
+                cover_img = Image.new('RGBA', (900, 250), (45, 45, 45, 255))
+                cover_img.save(cover_img_data, format='PNG')
+                cover_img_data = cover_img_data.getvalue()
 
     return cover_img_data, False
 
@@ -817,28 +810,25 @@ def draw_chat_lines(chat):
 
 
 async def get_turkish_chat(limit=10):
-    chat_api_url = "https://osu.ppy.sh/community/chat/channels/1397/messages"
+    chat_api_url = "https://osu.ppy.sh/api/v2/chat/channels/1397/messages"
     headers = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-        "Cookie": os.environ["COOKIE"],
-        'User-Agent': "PostmanRuntime/7.22.0"
     }
+    params = {"limit": limit}
 
     async with aiohttp.ClientSession() as session:
-        async with session.get(chat_api_url, headers=headers) as chat_rsp:
+        async with session.get(chat_api_url, headers=headers, params=params) as chat_rsp:
             chat = await chat_rsp.json()
 
     return chat[-limit:]
 
 
 async def get_country_rankings_v2(bmap_id, mods):
-    country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
+    country_url = f"https://osu.ppy.sh/api/v2/beatmaps/{bmap_id}/scores"
     mods = mods.upper()
     mods_array = [("mods[]", mods[i:i + 2]) for i in range(0, len(mods), 2)]
     header = {
         'Authorization': 'Bearer ' + os.environ["OAUTH2_TOKEN"],
-        "Cookie": os.environ["COOKIE"],
-        'User-Agent': "PostmanRuntime/7.22.0"
     }
     mods_array.append(("type", "country"))
     mods_array.append(("mode", "osu"))
@@ -965,7 +955,8 @@ def add_embed_description_on_compare(scores, offset, bmp):
         player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
-        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods, player_combo)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods, player_combo,
+                                                            player_acc)
         try:
             player_pp = float(score["pp"])
         except:
@@ -1004,7 +995,7 @@ async def add_embed_description_on_osutop(scores, offset):
         player_rank = fix_rank(score["rank"])
         player_acc = get_acc(count300, count100, count50, countmiss)
         player_score = make_readable_score(player_score)
-        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods_int, player_combo)
+        pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, countmiss, mods_int, player_combo, player_acc)
         player_pp = float(score["pp"])
         date = score["created_at"]
         timeago = time_ago(datetime.utcnow(), datetime.strptime(date, '%Y-%m-%dT%H:%M:%S+00:00'))
@@ -1026,7 +1017,7 @@ def draw_map_completion(d, bmp, play_data):
     count50 = int(play_data["count50"])
     count_miss = int(play_data["countmiss"])
     total_obj_on_play = count300 + count100 + count50 + count_miss
-    total_obj_on_map = ezpp_nobjects(bmp)
+    total_obj_on_map = total_obj_on_play
     completion = total_obj_on_play / total_obj_on_map
     font_1 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 14 * 2)
     font_2 = ImageFont.truetype(os.path.join("Fonts", "Exo2-ExtraBold.otf"), 11 * 2)
@@ -1123,11 +1114,20 @@ async def draw_user_play(player_name, play_data, background_image, bmap_data, fr
     count50 = play_data["count50"]
     count_miss = play_data["countmiss"]
     play_combo = play_data["maxcombo"]
+    player_acc = get_acc(count300, count100, count50, count_miss)
     score = make_readable_score(play_data["score"])
 
     mods_list, _ = get_mods(mods)
     mods_string = "NoMod" if len(mods_list) == 0 else "".join(mods_list)
-    pp_raw, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo)
+    pp_raw_from_oppai, pp_fc, pp_95, pp_ss = calculate_pp_of_score(bmp, count100, count50, count_miss, mods, play_combo, player_acc=player_acc)
+
+    if "pp" in play_data:
+        if play_data["pp"] is None:
+            pp_raw = pp_raw_from_oppai
+        else:
+            pp_raw = float(play_data["pp"])
+    else:
+        pp_raw = pp_raw_from_oppai
 
     acc = get_acc(count300, count100, count50, count_miss)
 
@@ -1263,7 +1263,7 @@ async def get_and_save_user_assets(user_data, achievement_data):
     for asset_url in asset_urls:
 
         filename = asset_url.split("/")[-1]
-        filename = filename.replace("?", "")
+        filename = filename.replace('?', '')
         asset_path = os.path.join(assets_folder, filename)
 
         # If it exists in cache, read from cache
@@ -1280,29 +1280,29 @@ async def get_and_save_user_assets(user_data, achievement_data):
             assets.append(asset)
 
     medals = []
-    achievements = user_data["user_achievements"][:3]
-    for achi in achievements:
-        achievement_id = achi["achievement_id"]
-        for ach in achievement_data:
-            if ach["id"] == achievement_id:
-                medal_url = ach["icon_url"]
-                break
-        filename = medal_url.split("/")[-1]
-        filename = filename.replace("?", "")
-        medal_path = os.path.join(medals_folder, filename)
+    # achievements = user_data["user_achievements"][:3]
+    # for achi in achievements:
+    #    achievement_id = achi["achievement_id"]
+    #    for ach in achievement_data:
+    #        if ach["achievement_id"] == achievement_id:
+    #            medal_url = ach["icon_url"]
+    #            break
+    #    filename = medal_url.split("/")[-1]
+    #    filename = filename.replace("?", "")
+    #    medal_path = os.path.join(medals_folder, filename)
 
-        # If it exists in cache, read from cache
-        if os.path.exists(medal_path):
-            medals.append(Image.open(medal_path))
+    # If it exists in cache, read from cache
+    #    if os.path.exists(medal_path):
+    #        medals.append(Image.open(medal_path))
 
-        # Else, save to cache
-        else:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(medal_url) as medal_rsp:
-                    medal_img_data = await medal_rsp.read()
-            medal = Image.open(io.BytesIO(medal_img_data))
-            medal.save(medal_path)
-            medals.append(medal)
+    # Else, save to cache
+    #    else:
+    #        async with aiohttp.ClientSession() as session:
+    #            async with session.get(medal_url) as medal_rsp:
+    #                medal_img_data = await medal_rsp.read()
+    #        medal = Image.open(io.BytesIO(medal_img_data))
+    #        medal.save(medal_path)
+    #        medals.append(medal)
 
     return assets, medals
 
@@ -1368,8 +1368,8 @@ async def draw_user_profile(user_data, achievements_data, ctx):
     banner.alpha_composite(glob, (100, 45))
 
     statistics = user_data["statistics"]
-    global_rank = statistics["rank"]["global"]
-    country_rank = statistics["rank"]["country"]
+    global_rank = statistics["global_rank"]
+    country_rank = statistics["country_rank"]
     player_pp = statistics["pp"]
     # Print user data onto banner
     d = ImageDraw.Draw(banner)
@@ -1469,17 +1469,22 @@ def draw_level_bar(level, draw):
 
 
 async def get_osu_user_web_profile(osu_username):
+    apiv1_url = "https://osu.ppy.sh/api/get_user"
+    params = {"k": OSU_API,
+              "u": osu_username,
+              "m": 0}
     async with aiohttp.ClientSession() as session:
-        async with session.get(f"https://osu.ppy.sh/users/{osu_username}/osu") as user_rsp:
-            userpage_content = await user_rsp.read()
-    soup = BeautifulSoup(userpage_content, 'html.parser')
-    try:
-        json_user = soup.find(id="json-user").string
-        json_achievements = soup.find(id="json-achievements").string
-    except:
-        raise Exception(f"`{osu_username}` adlı kişi osu!'da kayıtlı değil.")
-    user_dict = json.loads(json_user)
-    achievements_dict = json.loads(json_achievements)
+        async with session.get(apiv1_url, params=params) as user_rsp:
+            user = await user_rsp.json()
+
+    user_id = user[0]["user_id"]
+
+    apiv2_url = f"https://osu.ppy.sh/api/v2/users/{user_id}/osu"
+    header = {"Authorization": 'Bearer ' + os.environ["OAUTH2_TOKEN"]}
+    async with aiohttp.ClientSession() as session:
+        async with session.get(apiv2_url, headers=header) as user_rsp:
+            user_dict = await user_rsp.json()
+    achievements_dict = user_dict["user_achievements"]
 
     return user_dict, achievements_dict
 
@@ -1526,5 +1531,7 @@ def parse_recent_play(score_data):
 
 
 if __name__ == "__main__":
-    bmap_data = get_bmap_data(978026)
-    get_country_rankings_v2(bmap_data)
+    bmap_filepath = asyncio.run(beatmap_from_cache_or_web(2350281))
+    print(pp_calc.calculate_pp_with_accuracy(bmap_filepath, 98.797965788, 72))
+    print(pp_calc.calculate_pp_with_counts(bmap_filepath, 13, 0, 0, 1239, 72))
+    print(pp_calc.get_beatmap_info(bmap_filepath, 72))
