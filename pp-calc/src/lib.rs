@@ -106,10 +106,27 @@ fn get_beatmap_info(file_path: &str, mods: usize) -> PyResult<BTreeMap<&str, f64
     Ok(map_data)
 }
 
+#[pyfunction]
+fn get_beatmap_object_count(file_path: &str) -> PyResult<usize> {
+    let file = match File::open(file_path) {
+        Ok(file) => file,
+        Err(why) => panic!("Could not open file: {}", why),
+    };
+
+    // Parse the map yourself
+    let map = match Beatmap::parse(file) {
+        Ok(map) => map,
+        Err(why) => panic!("Error while parsing map: {}", why),
+    };
+
+    Ok(map.hit_objects.len())
+}
+
 #[pymodule]
 fn pp_calc(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(calculate_pp_with_counts, m)?)?;
     m.add_function(wrap_pyfunction!(calculate_pp_with_accuracy, m)?)?;
     m.add_function(wrap_pyfunction!(get_beatmap_info, m)?)?;
+    m.add_function(wrap_pyfunction!(get_beatmap_object_count, m)?)?;
     Ok(())
 }
