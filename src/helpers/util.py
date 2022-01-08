@@ -6,10 +6,6 @@ import aiohttp
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from database import Database
 from helpers.parser import Parser
-from data.player import Player
-from data.beatmap import Beatmap
-from data.osu_score import OsuScore
-from oppai import *
 import discord
 
 OSU_API = os.environ["OSU_API_KEY"]
@@ -71,7 +67,7 @@ async def get_recent_plays(parser: Parser):
 
     rs_api_url = 'https://osu.ppy.sh/api/get_user_recent'
     params = {'k': OSU_API,  # Api key
-              'u': parser.user,
+              'u': parser.username,
               'limit': 50,
               'm': parser.game_mode}
 
@@ -90,12 +86,12 @@ async def get_player_details(parser: Parser):
     """
     player = Player()
 
-    player_from_db = db.get_player(parser.user)
+    player_from_db = db.get_player(parser.username)
 
     if player_from_db is None:
         user_api_url = 'https://osu.ppy.sh/api/get_user'
         params = {'k': OSU_API,
-                  'u': parser.user}
+                  'u': parser.username}
         async with aiohttp.ClientSession() as session:
             async with session.get(user_api_url, params=params) as rsp:
                 the_response_json = await rsp.json()
@@ -222,7 +218,7 @@ async def draw_single_score(score: OsuScore):
     star_rating = float(ezpp_stars(beatmap.ez))
     player_pp = float(ezpp_pp(beatmap.ez))
     pp_text = f"{player_pp:.2f}pp"
-    title_text = f"{beatmap.artist} - {beatmap.title}"
+    title_text = f"{beatmap.difficulty} - {beatmap.title}"
 
     # Left - Top - Right - Bottom
     margin = (25, 15, 15, 5)

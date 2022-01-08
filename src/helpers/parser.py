@@ -1,27 +1,31 @@
-import os
 from typing import List
 
-from discord.ext.commands import BadArgument
-from discord import Member
+from nextcord import Member
+from nextcord.ext.commands import BadArgument, CommandError
 
 from database import Database
+from helpers.config import Config
+from helpers.ossapi_wrapper import api
+
+config = Config()
 
 
 class Parser:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.user = None
+        self.username = None
+        self.user_id = None
         self.is_multi = False
-        self.game_mode = 0
+        self.game_mode = 'osu'
         self.which_play = 0
-        self.db = Database(os.environ["DB_PATH"])
+        self.db = Database()
 
     async def parse_args(self, args: tuple, mentions: List[Member]):
 
         args = list(args)
         prefix = self.db.get_prefix(self.ctx.guild.id)
-        prefix = "*" if prefix is None else prefix[0]
+        prefix = config["DISCORD"]["defaultprefix"] if prefix is None else prefix[0]
 
         if "-l" in args:
             if "-p" in args:
@@ -45,54 +49,57 @@ class Parser:
 
         if "-m" in args:
             try:
-                self.game_mode = int(args[args.index("-m") + 1])
-                if self.game_mode not in [0, 1, 2, 3]:
-                    self.game_mode = 0
-                    await self.ctx.send(f"Argument after -m must be one of [0, 1, 2, 3].")
-                    raise ParserExceptionBadMode
-            except (ValueError, IndexError):
-                await self.ctx.send(f"Argument after -m must exist and must be one of [0, 1, 2, 3].")
-                raise ParserExceptionBadMode
+                self.game_mode = args[args.index("-m") + 1]
+                if self.game_mode not in ['osu', 'mania', 'taiko', 'fruits']:
+                    self.game_mode = 'osu'
+                    await self.ctx.send(
+                        f"Argument after -m must be one of ['osu', 'taiko', 'fruits', 'mania']. Defaulting to osu.")
+                else:
+                    del args[args.index("-m") + 1]
 
-            del args[args.index("-m") + 1]
+            except (ValueError, IndexError):
+                raise ParserExceptionBadMode(
+                    f"Argument after -m must exist and must be one of ['osu', 'taiko', 'fruits', 'mania'].")
+
             args.remove("-m")
 
         if len(mentions) > 0:
-            self.user = mentions[0]
-            user_or_none = self.db.get_user(self.user.id)
+            discord_user = mentions[0]
+            user_or_none = self.db.get_user(discord_user.id)
             if user_or_none is None:
-                self.user = self.user.display_name
+                raise ParserExceptionNoUserFound(f'{discord_user.display_name} has not linked their osu! account.')
             else:
-                self.user = user_or_none[1]
+                self.username = user_or_none['osu_username']
+                self.user_id = user_or_none['osu_id']
 
         elif len(args) == 1:
-            self.user = args[0]
+            self.username = args[0]
         elif len(args) > 0:
-            self.user = " ".join(args)
+            self.username = " ".join(args)
         else:
             user_or_none = self.db.get_user(self.ctx.author.id)
             if user_or_none is None:
-                await self.ctx.send(f"You should link your profile first. Usage: `{prefix}link <osu_username>`")
-                raise ParserExceptionNoUserFound
+                raise ParserExceptionNoUserFound(f'You should link your profile first. Usage: `{prefix}link <osu_username>`')
             else:
-                self.user = user_or_none[1]
+                self.username = user_or_none['osu_username']
+                self.user_id = user_or_none['osu_id']
+
+        if self.username.isdigit():
+            self.user_id = int(self.username)
+        else:
+            user_details = api.user(self.username)
+            self.user_id = user_details.id
 
         return
 
 
-class ParserExceptionNoUserFound(Exception):
-
-    def __init__(self):
-        super().__init__()
+class ParserExceptionNoUserFound(CommandError):
+    pass
 
 
-class ParserExceptionBadMode(Exception):
-
-    def __init__(self):
-        super().__init__()
+class ParserExceptionBadMode(CommandError):
+    pass
 
 
-class ParserExceptionBadPlayNo(Exception):
-
-    def __init__(self):
-        super().__init__()
+class ParserExceptionBadPlayNo(CommandError):
+    pass

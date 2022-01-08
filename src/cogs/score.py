@@ -1,6 +1,8 @@
-from discord.ext import commands
+from nextcord.ext import commands
 
-from helpers.util import *
+from helpers.ossapi_wrapper import api
+from helpers.parser import Parser
+from scorecard import ScoreCardFactory
 
 
 class Scores(commands.Cog):
@@ -22,31 +24,17 @@ class Scores(commands.Cog):
 
         parser = Parser(ctx)
 
-        try:
-            await parser.parse_args(args, mentions)
-        except:
-            return
+        await parser.parse_args(args, mentions)
 
         # Get recent plays of the user
-        plays = await get_recent_plays(parser)
-
-        # Get player details
-        player = await get_player_details(parser)
-
-        # Converts game mode from int to str. Ex: 1 -> Mania
-        game_mode = game_mode_enum[parser.game_mode]
+        plays = api.user_scores(user_id=parser.user_id, type_="recent", mode=parser.game_mode, include_fails=True)
 
         if len(plays) == 0:
-            await ctx.send(f"`{parser.user}` has not played recently in osu!{game_mode} :pensive:")
+            await ctx.send(f"`{parser.username}` has not played {parser.game_mode} recently... :pensive:")
             return
 
-        if parser.is_multi:
-            await send_multi_play_embed(ctx, parser, player, plays)
-        else:
-            # Get beatmap information
-            play = plays[parser.which_play]
-            await send_single_play_image(ctx, parser, player, play)
-
+        play_card = ScoreCardFactory(parser, plays).get_play_card()
+        await play_card.send()
 
 
 def setup(bot):
