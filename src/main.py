@@ -1,15 +1,11 @@
-import sys
-import traceback
-
-from nextcord.ext.commands import Context, errors
-
-from helpers.config import Config
 import logging
 
 import nextcord
 from nextcord.ext import commands
+from nextcord.ext.commands import Context, errors
 
 from database import Database
+from helpers.config import Config
 from helpers.parser import ParserExceptionNoUserFound
 
 config = Config()
@@ -71,6 +67,14 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
     if isinstance(exception, errors.CommandError):
         await ctx.send(f"An error occurred: {exception}")
 
+@bot.event
+async def on_ready():
+    """
+    Logs when the bot is ready.
+    """
+
+    logger.info(f"Logged in as {bot.user}")
+
 initial_extensions = ["cogs.score",
                       "cogs.map",
                       "cogs.profile"]
@@ -78,7 +82,6 @@ initial_extensions = ["cogs.score",
 if __name__ == "__main__":
     for extension in initial_extensions:
         bot.load_extension(extension)
-
 
 intents = nextcord.Intents.all()
 bot.run(config["DISCORD"]["token"], reconnect=True)

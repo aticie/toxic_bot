@@ -1,8 +1,12 @@
+import logging
+
 from nextcord.ext import commands
 
 from helpers.ossapi_wrapper import api
 from helpers.parser import Parser
 from scorecard import ScoreCardFactory
+
+logger = logging.getLogger('toxic-bot')
 
 
 class Scores(commands.Cog):
@@ -20,6 +24,7 @@ class Scores(commands.Cog):
             -m <game_mode>: Shows results for selected game mode. (0 = std, 1 = taiko, 2 = ctb, 3 = mania)
         """
 
+        logger.debug(f'Recent command called with args: {args}')
         mentions = ctx.message.mentions
 
         parser = Parser(ctx)
