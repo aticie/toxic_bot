@@ -1,31 +1,31 @@
 from typing import List
 
 from nextcord import Member
-from nextcord.ext.commands import BadArgument, CommandError
+from nextcord.ext.commands import BadArgument, CommandError, Context
 
-from database import Database
-from helpers.config import Config
-from helpers.ossapi_wrapper import api
-
-config = Config()
+from toxic_bot.bots.discord import DiscordOsuBot
+from toxic_bot.helpers.database import Database
+from toxic_bot.helpers.osu_api import OsuApiV2
 
 
 class Parser:
 
-    def __init__(self, ctx):
+    def __init__(self, ctx: Context):
         self.ctx = ctx
+        self.bot: DiscordOsuBot = ctx.bot
+        self.db: Database = ctx.bot.db
+        self.api: OsuApiV2 = ctx.bot.api
         self.username = None
         self.user_id = None
         self.is_multi = False
         self.game_mode = 'osu'
         self.which_play = 0
-        self.db = Database()
 
     async def parse_args(self, args: tuple, mentions: List[Member]):
 
         args = list(args)
-        prefix = self.db.get_prefix(self.ctx.guild.id)
-        prefix = config["DISCORD"]["defaultprefix"] if prefix is None else prefix[0]
+        prefix = await self.db.get_prefix(self.ctx.guild.id)
+        prefix = self.bot.default_prefix if prefix is None else prefix[0]
 
         if "-l" in args:
             if "-p" in args:
@@ -65,7 +65,7 @@ class Parser:
 
         if len(mentions) > 0:
             discord_user = mentions[0]
-            user_or_none = self.db.get_user(discord_user.id)
+            user_or_none = await self.db.get_user(discord_user.id)
             if user_or_none is None:
                 raise ParserExceptionNoUserFound(f'{discord_user.display_name} has not linked their osu! account.')
             else:
@@ -77,7 +77,7 @@ class Parser:
         elif len(args) > 0:
             self.username = " ".join(args)
         else:
-            user_or_none = self.db.get_user(self.ctx.author.id)
+            user_or_none = await self.db.get_user(self.ctx.author.id)
             if user_or_none is None:
                 raise ParserExceptionNoUserFound(f'You should link your profile first. Usage: `{prefix}link <osu_username>`')
             else:
@@ -87,7 +87,7 @@ class Parser:
         if self.username.isdigit():
             self.user_id = int(self.username)
         else:
-            user_details = api.user(self.username)
+            user_details = await self.api.get_user(self.username, key='string')
             self.user_id = user_details.id
 
         return

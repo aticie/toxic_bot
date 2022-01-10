@@ -1,17 +1,21 @@
 import logging
 
 from nextcord.ext import commands
+from ossapi import Score
 
-from helpers.ossapi_wrapper import api
-from helpers.parser import Parser
-from scorecard import ScoreCardFactory
+from toxic_bot.bots.discord import DiscordOsuBot
+from toxic_bot.helpers.osu_api import OsuApiV2
+from toxic_bot.helpers.parser import Parser
+from toxic_bot.scorecard import ScoreCardFactory
 
 logger = logging.getLogger('toxic-bot')
 
 
+
 class Scores(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: DiscordOsuBot):
         self.bot = bot
+        self.api: OsuApiV2 = bot.api
 
     @commands.command(name="recent", aliases=["rs", "r"])
     async def recent(self, ctx, *args: str):
@@ -32,8 +36,7 @@ class Scores(commands.Cog):
         await parser.parse_args(args, mentions)
 
         # Get recent plays of the user
-        plays = api.user_scores(user_id=parser.user_id, type_="recent", mode=parser.game_mode, include_fails=True)
-
+        plays = await self.api.get_user_scores(user_id=parser.user_id, score_type="recent", mode=parser.game_mode, include_fails=1)
         if len(plays) == 0:
             await ctx.send(f"`{parser.username}` has not played {parser.game_mode} recently... :pensive:")
             return

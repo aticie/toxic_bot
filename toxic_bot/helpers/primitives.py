@@ -1,4 +1,3 @@
-
 class Point(tuple):
     def __new__(cls, x, y):
         return tuple.__new__(Point, (x, y))
@@ -18,3 +17,14 @@ class Point(tuple):
     @classmethod
     def from_tuple(cls, t):
         return cls(t[0], t[1])
+
+
+def singleton(cls, *args, **kw):
+    instances = {}
+
+    def _singleton(*args, **kw):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kw)
+        return instances[cls]
+
+    return _singleton

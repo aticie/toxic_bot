@@ -1,14 +1,15 @@
 import os
 from re import sub
-from typing import Any, Union
+from types import SimpleNamespace
+from typing import Any
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from colour import Color
-from ossapi import Mod, Score
-from ossapi.enums import Grade, Statistics
+from ossapi import Mod
+from ossapi.enums import Grade
 
-from helpers.primitives import Point
+from toxic_bot.helpers.primitives import Point
 
 
 class TextBox:
@@ -102,7 +103,7 @@ class JudgementsBox:
                         'MEH': (255, 205, 35, 255),
                         'MISS': (240, 20, 30, 255)}
 
-    def __init__(self, judgements: Union[Statistics, Score], box_width=500):
+    def __init__(self, judgements: SimpleNamespace, box_width=500):
         self.judgements = judgements
         self.box_width = box_width
         self.margin = Point(10, 10)
@@ -168,7 +169,7 @@ class ScoreBox(JudgementsBox):
                         'COMBO': (255, 255, 255, 255),
                         'ACCURACY': (255, 255, 255, 255)}
 
-    def __init__(self, judgements: Score, box_width=500):
+    def __init__(self, judgements: SimpleNamespace, box_width=500):
         super().__init__(judgements, box_width)
 
 
