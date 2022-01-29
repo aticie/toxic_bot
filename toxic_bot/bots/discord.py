@@ -1,12 +1,15 @@
-from typing import List
+import logging
+from abc import ABC
 
 from nextcord.ext import commands
 
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
 
+logger = logging.getLogger('toxic-bot')
 
-class DiscordOsuBot(commands.Bot):
+
+class DiscordOsuBot(commands.Bot, ABC):
 
     def __init__(self, db_path: str, default_prefix: str,
                  osu_client_id, osu_client_secret, *args, **kwargs):
@@ -20,9 +23,12 @@ class DiscordOsuBot(commands.Bot):
         await self.db.close()
         await self.api.close()
 
+    async def on_message(self, message):
+        await self.wait_until_ready()
+        await super(DiscordOsuBot, self).on_message(message)
+
     async def get_prefix(self, message):
         """Gets the prefixes linked with servers from the database."""
-
         prefixes = await self.db.get_prefix(message.guild.id)
         if prefixes is None:
             prefixes = [self.default_prefix]
@@ -35,5 +41,5 @@ class DiscordOsuBot(commands.Bot):
         await self.db.set_prefix(guild_id, prefix)
 
     async def on_ready(self):
-        print(f'Logged in as: {self.user.name} - {self.user.id}')
+        logger.info(f'Logged in as: {self.user.name} - {self.user.id}')
         await self.db.initialize()

@@ -1,7 +1,9 @@
 import argparse
 import logging
+import sys
 
 import nextcord
+from nextcord import Interaction
 from nextcord.ext import commands
 from nextcord.ext.commands import Context, errors
 
@@ -25,6 +27,15 @@ args = parser.parse_args()
 
 logger = logging.getLogger("toxic-bot")
 logger.setLevel(args.log_level.upper())
+loggers_formatter = logging.Formatter(
+    '%(asctime)s | %(levelname)s | %(process)d | %(name)s | %(funcName)s | %(message)s',
+    datefmt='%d/%m/%Y %I:%M:%S')
+
+ch = logging.StreamHandler()
+ch.setFormatter(loggers_formatter)
+
+logger.addHandler(ch)
+# logger.propagate = False
 
 default_prefix = args.default_prefix
 
@@ -75,6 +86,24 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
     if isinstance(exception, errors.CommandError):
         await ctx.send(f"An error occurred: {exception}")
 
+
+@bot.event
+async def on_error(event: str, *args, **kwargs):
+
+    exception = sys.exc_info()
+    logger.error(f"An error occurred in {event} with args: {args} and kwargs: {kwargs}")
+    logger.error(f"{exception}")
+
+    embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
+
+    if event == 'on_interaction':
+        interaction: Interaction = args[0]
+        exception_text = str(exception[1])
+        embed.description = exception_text
+        await interaction.send(embed=embed)
+
+
+@commands.check
 @bot.check
 async def check_if_bot_is_ready(ctx: Context):
     """

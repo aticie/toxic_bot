@@ -1,8 +1,9 @@
 import io
 import os
 from abc import ABC
+from datetime import datetime, timezone
 from types import SimpleNamespace
-from typing import List, Dict
+from typing import List, Tuple
 from urllib.parse import urlparse
 
 import aiohttp
@@ -14,20 +15,21 @@ from rosu_pp_py import Calculator, ScoreParams
 
 from toxic_bot.helpers.image import PPTextBox, ScoreBox, StarRatingTextBox, TitleTextBox, DifficultyTextBox, \
     JudgementsBox, ModsIcon, ScoreGradeVisual
-from toxic_bot.helpers.parser import Parser
 from toxic_bot.helpers.primitives import Point
+from toxic_bot.helpers.time import time_ago
 
 
 class ScoreCard:
-    def __init__(self, parser: Parser, scores: List[SimpleNamespace]):
-        self.parser = parser
+    def __init__(self, scores: List[SimpleNamespace]):
         self.scores = scores
 
-    async def send(self):
+    def to_embed(self):
         """
-        Implemented in subclasses
+        Generates an embed object for the scorecard.
+
+        Implemented in subclasses.
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
 
 class EmbedScoreCard(ScoreCard, ABC):
@@ -36,9 +38,10 @@ class EmbedScoreCard(ScoreCard, ABC):
 
 class ImageScoreCard(ScoreCard, ABC):
 
-    def __init__(self, parser: Parser, scores: List[SimpleNamespace]):
-        super().__init__(parser, scores)
+    def __init__(self, scores: List[SimpleNamespace]):
+        super().__init__(scores)
         self.image = None
+        self.score = None
 
     async def draw_image(self, score: SimpleNamespace):
         """
@@ -72,7 +75,7 @@ class ImageScoreCard(ScoreCard, ABC):
         beatmap_download_url = f"https://osu.ppy.sh/osu/{beatmap_id}"
         return await self.download_and_save_asset(beatmap_download_url)
 
-    async def send(self):
+    async def to_embed(self) -> Tuple[nextcord.Embed, nextcord.File]:
         """
         Sends the play card to the current context channel
         """
@@ -80,14 +83,25 @@ class ImageScoreCard(ScoreCard, ABC):
         self.image.save(img_to_send, format='PNG')
         img_to_send.seek(0)
         file = nextcord.File(img_to_send, "score.png")
-        await self.parser.ctx.send(file=file)
+        embed = nextcord.Embed(
+            title=f'{self.score.beatmapset.artist} - {self.score.beatmapset.title} [{self.score.beatmap.version}]',
+            url=self.score.beatmap.url)
+        embed.set_author(name=f"Played by {self.score.user.username}",
+                         url=f"https://osu.ppy.sh/users/{self.score.user.id}",
+                         icon_url=self.score.user.avatar_url)
+        embed.set_image(url="attachment://score.png")
+        footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.fromisoformat(self.score.created_at))
+        embed.set_footer(text=f'▸ Score set {footer_time}Ago | {self.score.beatmap.id}')
+        return embed, file
 
 
 class SingleImageScoreCard(ImageScoreCard, ABC):
 
-    def __init__(self, parser: Parser, scores: List[SimpleNamespace]):
-        super().__init__(parser, scores)
-        self.score = scores[parser.which_play]
+    def __init__(self, scores: List[SimpleNamespace], index: int):
+        super().__init__(scores)
+        self.score = scores[index]
+        if not hasattr(self.score, 'id'):
+            self.score = self.score.score
 
     async def draw_image(self, score: SimpleNamespace):
         cover_image_path = await self.download_and_save_asset(score.beatmapset.covers.__getattribute__('card@2x'))
@@ -107,6 +121,7 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
         score.accuracy *= 100
 
         cover = Image.open(cover_image_path)
+        cover = cover.resize((800, 280), Image.ANTIALIAS)
         cover = cover.filter(ImageFilter.GaussianBlur(radius=1.25))
         cover_draw = ImageDraw.Draw(cover, "RGBA")
         cover_draw.rounded_rectangle((Point(10, 10), Point(cover.width - 10, cover.height - 10)), radius=10,
@@ -124,24 +139,29 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
         title.draw(cover_draw, title_margin, cover.width - right_offset)
         difficulty.draw(cover_draw, difficulty_margin, cover.width - right_offset)
         difficulty_height = difficulty.get_real_textsize(difficulty.text, difficulty.font)[1]
+
         judgement_pos = Point(20, difficulty_margin[1] + difficulty_height)
         JudgementsBox(score.statistics, cover.width - right_offset).draw(cover_draw, judgement_pos)
-        scorebox_pos = judgement_pos + Point(0, 65)
+
+        scorebox_pos = judgement_pos + Point(0, 90)
         ScoreBox(score, cover.width - right_offset).draw(cover_draw, scorebox_pos)
 
-        StarRatingTextBox(score.beatmap.difficulty_rating).draw(cover_draw, Point(cover.width - right_offset + 70, 50))
-        ModsIcon(mods).draw(cover, Point(cover.width - right_offset + 80, 110))
-        ScoreGradeVisual(Grade(score.rank)).draw(cover_draw, Point(cover.width - right_offset + 150, 30))
-        PPTextBox(score.pp).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 60))
+        score_grade = Grade(score.rank)
+
+        StarRatingTextBox(score.beatmap.difficulty_rating, mods).draw(cover_draw,
+                                                                      Point(cover.width - right_offset + 70, 70))
+        ModsIcon(mods).draw(cover, Point(cover.width - right_offset + 80, 130))
+        ScoreGradeVisual(score_grade).draw(cover_draw, Point(cover.width - right_offset + 160, 40))
+        PPTextBox(score.pp, score_grade).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 80))
 
         return cover
 
-    async def send(self):
+    async def to_embed(self) -> Tuple[nextcord.Embed, nextcord.File]:
         """
         Sends the image file to the channel
         """
         self.image = await self.draw_image(self.score)
-        await super(SingleImageScoreCard, self).send()
+        return await super().to_embed()
 
 
 class MultiEmbedScoreCard(ImageScoreCard, ABC):
@@ -153,12 +173,11 @@ class ScoreCardFactory(object):
     Factory class for creating ScoreCard objects.
     """
 
-    def __init__(self, parser: Parser, scores: List[SimpleNamespace]):
-        if parser.is_multi:
-            self.score_card = MultiEmbedScoreCard(parser, scores)
+    def __init__(self, scores: List[SimpleNamespace], index: int = 0, mode: str = 'single'):
+        if mode == 'multi':
+            self.score_card = MultiEmbedScoreCard(scores)
         else:
-            self.score_card = SingleImageScoreCard(parser, scores)
-        pass
+            self.score_card = SingleImageScoreCard(scores, index)
 
     def get_play_card(self) -> ScoreCard:
         return self.score_card

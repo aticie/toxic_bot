@@ -16,7 +16,7 @@ class Profile(commands.Cog):
     @commands.command(name="link")
     async def link(self, ctx, osu_username: str):
         """Link the discord account to user's osu! account"""
-        user_details = self.api.user(osu_username)
+        user_details = await self.api.get_user(osu_username, key='string')
         await self.db.set_link(discord_id=ctx.author.id, osu_id=user_details.id)
 
         await self.db.add_user(discord_id=ctx.author.id,

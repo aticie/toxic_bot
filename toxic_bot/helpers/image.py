@@ -13,8 +13,10 @@ from toxic_bot.helpers.primitives import Point
 
 
 class TextBox:
-    def __init__(self, text, color, font_size=24):
+    def __init__(self, text, color, font_size=24, stroke_width=0, stroke_fill=(0, 0, 0)):
         self.text = text
+        self.stroke_width = stroke_width
+        self.stroke_fill = stroke_fill
         self.font: ImageFont.FreeTypeFont = ImageFont.truetype(
             os.path.join("assets", "fonts", "Torus Semibold.otf"), font_size)
         self.color = color
@@ -26,7 +28,8 @@ class TextBox:
             max_width = text_width
         position = Point(position[0], position[1])
         self.text, width, height = self.clamp_text(self.font, self.text, max_width)
-        draw.text(position, self.text, fill=self.color, font=self.font, anchor=self.anchor)
+        draw.text(position, self.text, fill=self.color, font=self.font, anchor=self.anchor,
+                  stroke_width=self.stroke_width, stroke_fill=self.stroke_width)
 
     @staticmethod
     def get_real_textsize(text, font):
@@ -68,17 +71,18 @@ class JudgementTextBox(TextBox):
     def __init__(self, judgement: tuple, judgement_color, box_width):
         self.judgement_text, self.text = judgement
         color = (255, 255, 255, 255)
-        super().__init__(self.text, color)
+        super().__init__(self.text, color, font_size=32)
         self.judgement_width = box_width
         self.judgement_color = judgement_color
-        self.judgement_font_size = 14
+        self.judgement_font_size = 20
         self.judgement_font = ImageFont.truetype(self.font.path, self.judgement_font_size)
         self.judgement_anchor = 'mm'
+        self.judgement_box_to_text_margin = 46
         self.anchor = 'mm'
 
     def draw(self, draw: ImageDraw.ImageDraw, position: Point, max_width: int = None):
         self.draw_judgement_text(draw, position)
-        text_position = position + Point(self.judgement_width // 2, 34)
+        text_position = position + Point(self.judgement_width // 2, self.judgement_box_to_text_margin)
         super(JudgementTextBox, self).draw(draw, text_position, max_width)
 
     def draw_judgement_text(self, draw: ImageDraw.ImageDraw, position: Point):
@@ -140,7 +144,7 @@ class ScoreGradeVisual:
     def __init__(self, grade: Grade, radius=120):
         self.grade = grade
         self.radius = radius
-        self.grade_colors = {"F": (250, 22, 63, 30),
+        self.grade_colors = {"F": (240, 20, 30, 30),
                              "D": (250, 122, 36, 30),
                              "C": (139, 47, 151, 30),
                              "B": (70, 179, 230, 30),
@@ -149,7 +153,7 @@ class ScoreGradeVisual:
                              "X": (253, 212, 22, 30),
                              "SH": (239, 239, 239, 30),
                              "XH": (239, 239, 239, 30)}
-        font_size = 72
+        font_size = 96
         self.font: ImageFont.FreeTypeFont = ImageFont.truetype(
             os.path.join("assets", "fonts", "Torus Semibold.otf"), font_size)
 
@@ -157,8 +161,13 @@ class ScoreGradeVisual:
         grade_name = self.grade.name[:-1] if self.grade.name.endswith('H') else self.grade.name
         fill = self.grade_colors[self.grade.value]
         draw.ellipse((position, position + (self.radius, self.radius)), fill=fill)
-        draw.text(position + (self.radius // 2, self.radius // 2), grade_name, font=self.font,
-                  fill=fill, anchor='mm')
+        if len(grade_name) > 1:
+            position += Point(+5, +5)
+
+        for letter in grade_name:
+            draw.text(position + (self.radius // 2, self.radius // 2 - 32), letter, font=self.font,
+                      fill=fill, anchor='mt', stroke_width=4, stroke_fill=(0, 0, 0, 255))
+            position += Point(-10, -10)
 
 
 class ScoreBox(JudgementsBox):
@@ -177,21 +186,25 @@ class PPTextBox(TextBox):
     pp_domain = np.asarray([0, 1.25, 2, 2.5, 3.3, 4.2, 4.9, 5.8, 6.7, 7.7, 9, 100]) * 100
     font_sizes = [50, 52, 54, 56, 60, 62, 64, 66, 70, 72, 76, 80]
     color_domain = np.asarray(
-        ['#c85fc9', '#985acd', '#5f55d1', '#5081d5', '#4bc0d9', '#45ddb3', '#40e16b', '#5ae63b', '#a9ea35', '#eedd30',
-         '#f3852a', '#f72525'])
+        ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#7da82c', '#bfb82e', '#eba72a', '#ed5b1c', '#ed3b1c',
+         '#fc3c2b', '#f72525'])
 
-    def __init__(self, pp: float):
+    def __init__(self, pp: float, score_grade: Grade):
         self.pp = pp
         self.pp_text = f'{pp:.0f}pp'
+        self.grade = score_grade
         font_size = self.font_sizes[self.find_biggest(self.pp_domain, self.pp)]
         color = self.find_gradient_color()
-        super().__init__(self.pp_text, color, font_size=font_size)
+        super().__init__(self.pp_text, color, font_size=font_size, stroke_width=2, stroke_fill=(255, 255, 255, 255))
 
     @staticmethod
     def find_biggest(array, value):
         return np.argmax(array > value)
 
     def find_gradient_color(self):
+        if self.grade == self.grade.F:
+            return '#6e6766'
+
         idx = self.find_biggest(self.pp_domain, self.pp)
 
         max_pp = self.pp_domain[idx]
@@ -250,19 +263,30 @@ class ModsIcon:
 
 
 class StarRatingTextBox(TextBox):
-    def __init__(self, rating: float):
+    def __init__(self, rating: float, mods: Mod):
         self.rating = rating
+        self.mods = mods
         self.rating_text = f'{rating:.2f}'
-        self.star_icon_path = os.path.join("assets", "icons", "star.png")
-        super().__init__(self.rating_text, (255, 255, 255, 255), font_size=48)
+        self.text_fill = (255, 200, 80, 255)
+        self.font_size = 36
+        super().__init__(self.rating_text, self.text_fill, font_size=self.font_size)
 
     def draw(self, draw: ImageDraw.ImageDraw, position: Point, max_width: int = None):
-        self.draw_star_icon(position, image=draw._image)
+        self.draw_background_badge(draw, position)
+        self.draw_star_icon(position=position, draw=draw)
         super().draw(draw, position)
 
-    def draw_star_icon(self, position: Point, image: Image.Image):
-        star_icon = Image.open(self.star_icon_path)
-        star_icon.thumbnail((32, 32))
+    def draw_star_icon(self, draw: ImageDraw.ImageDraw, position: Point, ):
+        font = ImageFont.truetype(os.path.join("assets", "fonts", "fontawesome-regular.ttf"), self.font_size)
         text_width, text_height = self.get_real_textsize(self.text, self.font)
-        new_position = (position[0] + text_width // 2 + 5, position[1] - 14)
-        image.paste(star_icon, new_position, star_icon)
+        draw.text(position + Point(text_width // 2 + 4, 0), u"\uf005", font=font, fill=self.text_fill, anchor='lm')
+
+    def draw_background_badge(self, draw: ImageDraw.ImageDraw, position: Point):
+        left_offset = Point(0, 0)
+        right_offset = Point(0, 0)
+        if self.rating >= 10:
+            left_offset = Point(4, 0)
+            right_offset = Point(4, 0)
+        rectangle_position = (position - Point(42, 24) - left_offset,
+                              position + Point(76, 24) + right_offset)
+        draw.rounded_rectangle(rectangle_position, fill=(0, 0, 0, 220), radius=15)

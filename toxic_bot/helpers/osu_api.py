@@ -31,6 +31,17 @@ class OsuApiV2(aiohttp.ClientSession):
 
         return
 
+    async def get_user_beatmap_score(self, user_id: int, beatmap_id: int):
+        """
+        Gets the score for the specified user and beatmap.
+        :param user_id: The ID of the user.
+        :param beatmap_id: The ID of the beatmap.
+        :param mode: Game mode. One of [fruits, mania, osu, taiko]
+        :return: Returns Score object.
+        """
+        logger.debug(f'Requesting user score for id: {user_id} and beatmap id: {beatmap_id}')
+        return await self._get_endpoint(f'beatmaps/{beatmap_id}/scores/users/{user_id}')
+
     async def get_user_scores(self,
                               user_id: int,
                               score_type: str,
@@ -50,7 +61,7 @@ class OsuApiV2(aiohttp.ClientSession):
         """
         params = {"include_fails": include_fails, "mode": mode, "limit": limit,
                   "offset": offset}
-        logger.debug(f'Requesting user best ranks with {params}')
+        logger.debug(f'Requesting user {score_type} ranks with {params}')
         return await self._get_endpoint(f'users/{user_id}/scores/{score_type}', params)
 
     async def get_country_top_50(self, country_code: str, game_mode: str = 'osu'):
@@ -121,10 +132,12 @@ class OsuApiV2(aiohttp.ClientSession):
         return self._format_response(contents)
 
     def _format_response(self, response: Union[List, Dict]) -> Union[List, SimpleNamespace, Any]:
+        if 'error' in response:
+            return None
         if isinstance(response, list):
             return [self._format_dict(r) for r in response]
         elif isinstance(response, dict):
-            return self._format_dict(response)
+            return [self._format_dict(response)]
 
     def _format_dict(self, d: dict) -> SimpleNamespace:
         new_dict = {}
@@ -136,9 +149,10 @@ class OsuApiV2(aiohttp.ClientSession):
         else:
             return SimpleNamespace(**new_dict)
 
-
     @staticmethod
-    def _format_params(params: dict) -> dict:
+    def _format_params(params: Optional[dict]) -> dict:
+        if params is None:
+            return {}
         keys_to_pop = []
         for key, value in params.items():
             if value is None:
