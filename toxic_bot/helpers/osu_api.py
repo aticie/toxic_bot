@@ -80,6 +80,8 @@ class OsuApiV2(aiohttp.ClientSession):
         Gets beatmap data for the specified beatmap ID.
         :param beatmap_id: The ID of the beatmap.
         :return: Returns Beatmap object.
+
+        This endpoint returns a single beatmap object.
         """
         logger.debug(f'Requesting beatmap information for id: {beatmap_id}')
         return await self._get_endpoint(f'beatmaps/{beatmap_id}')
@@ -137,7 +139,7 @@ class OsuApiV2(aiohttp.ClientSession):
         if isinstance(response, list):
             return [self._format_dict(r) for r in response]
         elif isinstance(response, dict):
-            return [self._format_dict(response)]
+            return self._format_dict(response)
 
     def _format_dict(self, d: dict) -> SimpleNamespace:
         new_dict = {}

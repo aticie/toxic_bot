@@ -1,8 +1,10 @@
+import io
 import os
 from re import sub
 from types import SimpleNamespace
 from typing import Any
 
+import nextcord
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 from colour import Color
@@ -290,3 +292,11 @@ class StarRatingTextBox(TextBox):
         rectangle_position = (position - Point(42, 24) - left_offset,
                               position + Point(76, 24) + right_offset)
         draw.rounded_rectangle(rectangle_position, fill=(0, 0, 0, 220), radius=15)
+
+
+def pillow_image_to_discord_file(image: Image.Image, filename: str):
+    img_to_send = io.BytesIO()
+    image.save(img_to_send, format='PNG')
+    img_to_send.seek(0)
+    file = nextcord.File(img_to_send, filename=filename)
+    return file

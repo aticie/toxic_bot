@@ -1,20 +1,18 @@
 import io
-import os
 from abc import ABC
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import List, Tuple
-from urllib.parse import urlparse
 
-import aiohttp
 import nextcord
 from PIL import Image, ImageFilter, ImageDraw
 from ossapi import Mod
 from ossapi.enums import Grade
 from rosu_pp_py import Calculator, ScoreParams
 
+from toxic_bot.helpers.http_downloader import download_and_save_asset, download_and_save_beatmap
 from toxic_bot.helpers.image import PPTextBox, ScoreBox, StarRatingTextBox, TitleTextBox, DifficultyTextBox, \
-    JudgementsBox, ModsIcon, ScoreGradeVisual
+    JudgementsBox, ModsIcon, ScoreGradeVisual, pillow_image_to_discord_file
 from toxic_bot.helpers.primitives import Point
 from toxic_bot.helpers.time import time_ago
 
@@ -49,40 +47,11 @@ class ImageScoreCard(ScoreCard, ABC):
         """
         raise NotImplementedError
 
-    async def download_and_save_asset(self, url) -> str:
-        """
-        Downloads image from url and returns PIL Image
-        """
-        url_path = urlparse(url).path
-        folder_name, filename = os.path.split(url_path)
-        local_folder_path = os.path.join('assets', f'.{folder_name}')
-        asset_file_path = os.path.join(local_folder_path, filename)
-        os.makedirs(local_folder_path, exist_ok=True)
-
-        if os.path.exists(asset_file_path):
-            return asset_file_path
-
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as resp:
-                response_bytes = await resp.read()
-
-        with open(asset_file_path, "wb") as f:
-            f.write(response_bytes)
-
-        return asset_file_path
-
-    async def download_and_save_beatmap(self, beatmap_id) -> str:
-        beatmap_download_url = f"https://osu.ppy.sh/osu/{beatmap_id}"
-        return await self.download_and_save_asset(beatmap_download_url)
-
     async def to_embed(self) -> Tuple[nextcord.Embed, nextcord.File]:
         """
         Sends the play card to the current context channel
         """
-        img_to_send = io.BytesIO()
-        self.image.save(img_to_send, format='PNG')
-        img_to_send.seek(0)
-        file = nextcord.File(img_to_send, "score.png")
+        file = pillow_image_to_discord_file(self.image, 'score.png')
         embed = nextcord.Embed(
             title=f'{self.score.beatmapset.artist} - {self.score.beatmapset.title} [{self.score.beatmap.version}]',
             url=self.score.beatmap.url)
@@ -91,7 +60,7 @@ class ImageScoreCard(ScoreCard, ABC):
                          icon_url=self.score.user.avatar_url)
         embed.set_image(url="attachment://score.png")
         footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.fromisoformat(self.score.created_at))
-        embed.set_footer(text=f'▸ Score set {footer_time}Ago | {self.score.beatmap.id}')
+        embed.set_footer(text=f'▸ Score set {footer_time}Ago | {self.score.beatmap.id},{self.score.user.id}')
         return embed, file
 
 
@@ -104,8 +73,8 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
             self.score = self.score.score
 
     async def draw_image(self, score: SimpleNamespace):
-        cover_image_path = await self.download_and_save_asset(score.beatmapset.covers.__getattribute__('card@2x'))
-        beatmap_path = await self.download_and_save_beatmap(score.beatmap.id)
+        cover_image_path = await download_and_save_asset(score.beatmapset.covers.__getattribute__('card@2x'))
+        beatmap_path = await download_and_save_beatmap(score.beatmap.id)
         calculator = Calculator(beatmap_path)
         mods = Mod(score.mods)
         [rosupp_result] = calculator.calculate(ScoreParams(mods=mods.value,
@@ -179,5 +148,5 @@ class ScoreCardFactory(object):
         else:
             self.score_card = SingleImageScoreCard(scores, index)
 
-    def get_play_card(self) -> ScoreCard:
+    def get_card(self) -> ScoreCard:
         return self.score_card

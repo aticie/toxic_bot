@@ -1,10 +1,14 @@
 import logging
 from abc import ABC
+from types import SimpleNamespace
 
+from nextcord import Interaction
 from nextcord.ext import commands
 
+from toxic_bot.cards.profilecard import ProfileCardFactory
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
+from toxic_bot.helpers.parser import ParserExceptionNoUserFound
 
 logger = logging.getLogger('toxic-bot')
 
@@ -43,3 +47,45 @@ class DiscordOsuBot(commands.Bot, ABC):
     async def on_ready(self):
         logger.info(f'Logged in as: {self.user.name} - {self.user.id}')
         await self.db.initialize()
+        test_channel = await self.fetch_channel(609718050543108135)
+
+        user_details = await self.api.get_user('toy', key='username')
+
+        profile_card = ProfileCardFactory(user_details).get_card()
+        embed, file = await profile_card.to_embed()
+        await test_channel.send(embed=embed, file=file)
+
+    async def get_user_id(self, interaction: Interaction, name: str):
+
+        if name is None:
+            user_discord_id = interaction.user.id
+            user_details = await self.get_user_details(interaction, user_discord_id)
+        else:
+            if name.startswith('<@'):
+                user_discord_id = int(name[2:-1])
+                user_details = await self.get_user_details(interaction, user_discord_id)
+            else:
+                user_details = await self.api.get_user(name, key='username')
+                if user_details is None:
+                    raise ParserExceptionNoUserFound(f'User `{name}` was not found.')
+
+        if isinstance(user_details, SimpleNamespace):
+            user_id = user_details.id
+        else:
+            user_id = user_details['osu_id']
+
+        return user_id
+
+    async def get_user_details(self, interaction, user_discord_id):
+
+        server_prefix = await self.db.get_prefix(interaction.guild.id)
+        if server_prefix is None:
+            server_prefix = self.default_prefix
+
+        user_details = await self.db.get_user(user_discord_id)
+        if user_details is None:
+            raise ParserExceptionNoUserFound(
+                f'User <@{user_discord_id}> was not found. '
+                f'If this is you, please link your osu! profile with `{server_prefix}link` or /link')
+
+        return user_details

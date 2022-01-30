@@ -41,8 +41,8 @@ default_prefix = args.default_prefix
 
 db_path = args.database_path
 
-initial_extensions = ["cogs.score",
-                      "cogs.map",
+initial_extensions = ["cogs.score_interactions",
+                      "cogs.map_interactions",
                       "cogs.profile"]
 
 bot = DiscordOsuBot(db_path=db_path,
@@ -89,7 +89,6 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
 
 @bot.event
 async def on_error(event: str, *args, **kwargs):
-
     exception = sys.exc_info()
     logger.error(f"An error occurred in {event} with args: {args} and kwargs: {kwargs}")
     logger.error(f"{exception}")
