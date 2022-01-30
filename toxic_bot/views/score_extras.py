@@ -10,7 +10,7 @@ from toxic_bot.cogs.map_interactions import MapInteractions
 logger = logging.getLogger('toxic-bot')
 
 
-class ExtrasDropdown(nextcord.ui.Select):
+class ScoreExtrasDropdown(nextcord.ui.Select):
     def __init__(self):
         options = [
             nextcord.SelectOption(label='Compare', description='Shows your score on this map.', emoji='🟥'),
@@ -32,17 +32,20 @@ class ExtrasDropdown(nextcord.ui.Select):
         elif self.values[0] == 'Map info':
             map_cog: MapInteractions = bot.get_cog('MapInteractions')
             await map_cog._map_info_core(interaction)
+        elif self.values[0] == 'Profile':
+            author_name = interaction.message.embeds[0].author.name
+            played_by = ' '.join(author_name.split(' ')[2:])
+            await bot.get_cog('Profile')._profile_core(interaction, played_by)
 
         return
 
 
-class ExtrasDropdownView(nextcord.ui.View):
+class ScoreExtrasView(nextcord.ui.View):
     def __init__(self):
         super().__init__()
 
         # Adds the dropdown to our view object.
-        self.add_item(ExtrasDropdown())
-
+        self.add_item(ScoreExtrasDropdown())
 
     async def on_error(self, error: Exception, item: Item, interaction: Interaction) -> None:
         logger.error(f'Error in {self.__class__.__name__}', exc_info=error)

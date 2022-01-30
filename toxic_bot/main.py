@@ -17,11 +17,11 @@ parser.add_argument('--discord_token',
                          'https://discordapp.com/developers/applications/me',
                     required=True)
 parser.add_argument('--log_level', type=str, default='INFO', help='Log level. Default is INFO.')
-parser.add_argument('--database_path', type=str, default='./database/database.db',
-                    help='Path to database file.')
 parser.add_argument('--default_prefix', type=str, default='*', help='Default prefix for commands.')
 parser.add_argument('--client_id', type=str, default='', help='Client ID for the osu!api v2.')
 parser.add_argument('--client_secret', type=str, default='', help='Client secret for the osu!api v2.')
+parser.add_argument('--redirect_uri', type=str, default='https://auth.ronnia.me/',
+                    help='Redirect uri, required for linking osu! account.')
 
 args = parser.parse_args()
 
@@ -39,18 +39,16 @@ logger.addHandler(ch)
 
 default_prefix = args.default_prefix
 
-db_path = args.database_path
-
 initial_extensions = ["cogs.score_interactions",
                       "cogs.map_interactions",
                       "cogs.profile"]
 
-bot = DiscordOsuBot(db_path=db_path,
-                    default_prefix=default_prefix,
+bot = DiscordOsuBot(default_prefix=default_prefix,
                     osu_client_id=args.client_id,
                     osu_client_secret=args.client_secret,
                     case_insensitive=True,
-                    description=f"{default_prefix} is my default prefix")
+                    description=f"{default_prefix} is my default prefix",
+                    osu_redirect_uri=args.redirect_uri)
 
 
 @bot.command(name="prefix")
@@ -75,16 +73,18 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
     """
 
     logger.error(f"{ctx.author} in {ctx.guild} failed to execute {ctx.command} with error: {exception}")
+    embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
 
     if isinstance(exception, errors.BadArgument):
-        await ctx.send(f"Invalid argument: {exception}")
-        return
+        embed.description = f"Invalid argument: {exception}"
+    elif isinstance(exception, ParserExceptionNoUserFound):
+        embed.description = f"{exception}"
+    elif isinstance(exception, commands.CommandOnCooldown):
+        embed.description = f"You are on cooldown, please try again in {exception.retry_after} seconds later."
+    else:
+        embed.description = f"Details: {exception}"
 
-    if isinstance(exception, ParserExceptionNoUserFound):
-        await ctx.send(f'{exception}')
-
-    if isinstance(exception, errors.CommandError):
-        await ctx.send(f"An error occurred: {exception}")
+    await ctx.send(embed=embed)
 
 
 @bot.event

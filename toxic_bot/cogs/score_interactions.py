@@ -12,7 +12,7 @@ from toxic_bot.bots.discord import DiscordOsuBot
 from toxic_bot.cards.scorecard import ScoreCardFactory
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
-from toxic_bot.views.score_extras import ExtrasDropdownView
+from toxic_bot.views.score_extras import ScoreExtrasView
 
 logger = logging.getLogger('toxic-bot')
 
@@ -160,7 +160,7 @@ class ScoreInteractions(commands.Cog):
             beatmap = await self.api.get_beatmap(play_card.score.beatmap.id)
             play_card.score.beatmapset = beatmap.beatmapset
         embed, file = await play_card.to_embed()
-        view = ExtrasDropdownView()
+        view = ScoreExtrasView()
         await interaction.send(embed=embed, file=file, view=view)
 
     async def get_user_plays(self, interaction: Interaction, game_mode: str, name: str, score_type: str,

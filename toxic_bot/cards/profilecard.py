@@ -153,7 +153,7 @@ class ImageProfileCard(ProfileCard):
                                  title_font_size=title_font_size, value_font_size=value_font_size,
                                  title_margin=title_margin, value_margin=value_margin)
         await self.draw_info_box(self.pp_margin, self.pp_width, 'pp',
-                                 f'{self.user.statistics.pp:g}', self.pp_separator_color,
+                                 f'{int(self.user.statistics.pp):,}', self.pp_separator_color,
                                  title_font_size=title_font_size, value_font_size=value_font_size,
                                  title_margin=title_margin, value_margin=value_margin)
 

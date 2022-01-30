@@ -13,7 +13,7 @@ logger = logging.getLogger('toxic-bot')
 @singleton
 class Database:
 
-    def __init__(self, db_path='toxic_bot.db'):
+    def __init__(self, db_path='/database/database.db'):
         self.db_path = db_path
         self.conn = None
         self.c = None
@@ -29,7 +29,7 @@ class Database:
         await self.c.execute('pragma journal_mode=wal')
         await self.c.execute("CREATE TABLE IF NOT EXISTS prefixes (guild_id INTEGER, prefix TEXT)")
         await self.c.execute("CREATE TABLE IF NOT EXISTS osu_players "
-                             "(discord_id INTEGER, "
+                             "(discord_id INTEGER UNIQUE, "
                              "osu_username TEXT, "
                              "osu_id INTEGER, "
                              "last_updated TIMESTAMP, "

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 from typing import List, Tuple
 
+import PIL
 import nextcord
 from PIL import Image, ImageFilter, ImageDraw
 from ossapi import Mod
@@ -89,7 +90,10 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
         score.pp = rosupp_result.pp
         score.accuracy *= 100
 
-        cover = Image.open(cover_image_path)
+        try:
+            cover = Image.open(cover_image_path)
+        except PIL.UnidentifiedImageError:
+            cover = Image.new('RGB', (800, 280), (45, 45, 45))
         cover = cover.resize((800, 280), Image.ANTIALIAS)
         cover = cover.filter(ImageFilter.GaussianBlur(radius=1.25))
         cover_draw = ImageDraw.Draw(cover, "RGBA")
