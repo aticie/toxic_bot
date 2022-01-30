@@ -30,7 +30,7 @@ class Profile(commands.Cog):
         embed = await self._link_core(ctx.author.id)
         await ctx.author.send(embed=embed)
 
-    @nextcord.slash_command(guild_ids=[571853176752308244], name="link",
+    @nextcord.slash_command(guild_ids=[...], name="link",
                             description="Links your osu! account to your discord account.")
     async def link_slash(self, interaction: Interaction):
         """Link the discord account to user's osu! account"""
@@ -54,7 +54,7 @@ class Profile(commands.Cog):
                                description=f'[Click here]({urllib.parse.urlunparse(url)}) to link your discord account to your osu! account.')
         return embed
 
-    @nextcord.slash_command(guild_ids=[571853176752308244], name="profile",
+    @nextcord.slash_command(guild_ids=[...], name="profile",
                             description="Shows the specified user's osu! profile.")
     async def profile_slash(self, interaction: Interaction,
                             osu_username: str = SlashOption(

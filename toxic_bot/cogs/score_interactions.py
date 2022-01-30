@@ -1,12 +1,12 @@
 import logging
 from types import SimpleNamespace
-from typing import List
+from typing import List, Optional
 
 import nextcord
 from nextcord import SlashOption, Interaction
 from nextcord.embeds import _EmptyEmbed
 from nextcord.ext import commands
-from nextcord.ext.commands import CommandError
+from nextcord.ext.commands import CommandError, Context
 
 from toxic_bot.bots.discord import DiscordOsuBot
 from toxic_bot.cards.scorecard import ScoreCardFactory
@@ -23,40 +23,75 @@ class ScoreInteractions(commands.Cog):
         self.api: OsuApiV2 = bot.api
         self.db: Database = bot.db
 
-    @nextcord.slash_command(guild_ids=[571853176752308244], name="rs",
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.command(name="recent", aliases=["r", "rs"])
+    async def recent(self, ctx: Context, index: int = 1, game_mode: str = "osu", osu_username: Optional[str] = None,
+                     passes_only: bool = False):
+        """
+        Shows the recent play of a player
+        """
+        index -= 1
+        plays = await self.get_user_plays(interaction=ctx, game_mode=game_mode, name=osu_username,
+                                          passes_only=passes_only,
+                                          score_type='recent')
+        if len(plays) == 0:
+            raise CommandError(f"`{osu_username}` has not played {game_mode} recently... :pensive:")
+
+        await self._single_score_core(index, plays, interaction=ctx)
+
+    @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.command(name="recentbest", aliases=["rb"])
+    async def recent_best(self, ctx: Context, index: int = 1, game_mode: str = "osu",
+                          osu_username: Optional[str] = None,
+                          passes_only: bool = False):
+        """
+        Shows the recent top play of a player
+        """
+        index -= 1
+        plays = await self.get_user_plays(interaction=ctx, game_mode=game_mode, name=osu_username, score_type='best')
+
+        if len(plays) == 0:
+            raise CommandError(f"`{osu_username}` has not played {game_mode} recently... :pensive:")
+
+        plays.sort(key=lambda x: x.created_at, reverse=True)
+
+        await self._single_score_core(index, plays, interaction=ctx)
+
+    @nextcord.slash_command(guild_ids=[...], name="rs",
                             description="Shows the most recent play of a player")
-    async def recent(self,
-                     interaction: Interaction,
-                     name: str = SlashOption(
-                         name="name",
-                         description="Specify the username or mention of the player",
-                         required=False),
-                     game_mode: str = SlashOption(
-                         name="mode",
-                         description="Specify the gamemode",
-                         default="osu",
-                         choices=["osu", "taiko", "fruits", "mania"],
-                         required=False),
-                     index: int = SlashOption(
-                         name="index",
-                         description="Specify the index of the score to show",
-                         default=0,
-                         required=False),
-                     passes_only: bool = SlashOption(
-                         name="passes",
-                         description="Show scores that are passes",
-                         default=False,
-                         required=False),
-                     as_list: bool = SlashOption(
-                         name="as_list",
-                         description="Show scores as a list",
-                         default=False,
-                         required=False),
-                     ):
+    async def recent_interaction(self,
+                                 interaction: Interaction,
+                                 name: str = SlashOption(
+                                     name="name",
+                                     description="Specify the username or mention of the player",
+                                     required=False),
+                                 game_mode: str = SlashOption(
+                                     name="mode",
+                                     description="Specify the gamemode",
+                                     default="osu",
+                                     choices=["osu", "taiko", "fruits", "mania"],
+                                     required=False),
+                                 index: int = SlashOption(
+                                     name="index",
+                                     description="Specify the index of the score to show",
+                                     default=1,
+                                     required=False),
+                                 passes_only: bool = SlashOption(
+                                     name="passes",
+                                     description="Show scores that are passes",
+                                     default=False,
+                                     required=False),
+                                 as_list: bool = SlashOption(
+                                     name="as_list",
+                                     description="Show scores as a list",
+                                     default=False,
+                                     required=False),
+                                 ):
         """
         Shows the most recent play of a player
         """
 
+        index -= 1
         logger.debug(f'Recent slash command called with args: {name, game_mode, index, passes_only}')
         await interaction.response.defer()
 
@@ -71,32 +106,32 @@ class ScoreInteractions(commands.Cog):
         else:
             await self._single_score_core(index, plays, interaction=interaction)
 
-    @nextcord.slash_command(guild_ids=[571853176752308244], name="rb",
+    @nextcord.slash_command(guild_ids=[...], name="rb",
                             description="Shows the most recent top play of a player")
-    async def recent_best(self,
-                          interaction: Interaction,
-                          name: str = SlashOption(
-                              name="name",
-                              description="Specify the username or mention of the player",
-                              required=False),
-                          game_mode: str = SlashOption(
-                              name="mode",
-                              description="Specify the gamemode",
-                              default="osu",
-                              choices=["osu", "taiko", "fruits", "mania"],
-                              required=False),
-                          index: int = SlashOption(
-                              name="index",
-                              description="Specify the index of the score to show",
-                              default=0,
-                              required=False),
-                          as_list: bool = SlashOption(
-                              name="as_list",
-                              description="Show scores as a list",
-                              default=False,
-                              required=False),
-                          ):
-
+    async def recent_best_interaction(self,
+                                      interaction: Interaction,
+                                      name: str = SlashOption(
+                                          name="name",
+                                          description="Specify the username or mention of the player",
+                                          required=False),
+                                      game_mode: str = SlashOption(
+                                          name="mode",
+                                          description="Specify the gamemode",
+                                          default="osu",
+                                          choices=["osu", "taiko", "fruits", "mania"],
+                                          required=False),
+                                      index: int = SlashOption(
+                                          name="index",
+                                          description="Specify the index of the score to show",
+                                          default=1,
+                                          required=False),
+                                      as_list: bool = SlashOption(
+                                          name="as_list",
+                                          description="Show scores as a list",
+                                          default=False,
+                                          required=False),
+                                      ):
+        index -= 1
         logger.debug(f'Recent slash command called with args: {name, game_mode, index, as_list}')
         await interaction.response.defer()
 
@@ -111,7 +146,7 @@ class ScoreInteractions(commands.Cog):
         else:
             await self._single_score_core(index, plays, interaction=interaction)
 
-    @nextcord.message_command(guild_ids=[571853176752308244], name="Compare")
+    @nextcord.message_command(guild_ids=[...], name="Compare")
     async def compare_command(self, interaction: Interaction, message: nextcord.Message):
         """
         Can be used as an Application Command, or from the drop-down view of another message.
