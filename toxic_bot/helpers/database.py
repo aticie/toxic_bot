@@ -26,7 +26,7 @@ class Database:
         os.makedirs(os.path.split(self.db_path)[0], exist_ok=True)
         self.c = await aiosqlite.connect(self.db_path, detect_types=sqlite3.PARSE_DECLTYPES)
         self.c.row_factory = aiosqlite.Row
-        await self.c.execute('pragma journal_mode=wal')
+        await self.c.execute('pragma journal_mode=DELETE')
         await self.c.execute("CREATE TABLE IF NOT EXISTS prefixes (guild_id INTEGER, prefix TEXT)")
         await self.c.execute("CREATE TABLE IF NOT EXISTS osu_players "
                              "(discord_id INTEGER UNIQUE, "
