@@ -11,4 +11,5 @@ RUN pip install -r requirements.txt
 RUN pip install git+https://github.com/nextcord/nextcord.git@master --force-reinstall --no-deps
 
 COPY toxic_bot /bot/toxic_bot/
-
+COPY assets/fonts /bot/assets/fonts
+COPY assets/icons/mods /bot/assets/icons/mods

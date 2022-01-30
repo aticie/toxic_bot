@@ -2,3 +2,5 @@ assets/
 database/
 venv/
 pp-calc/
+!assets/fonts
+!assets/icons
