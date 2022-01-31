@@ -1,25 +1,5 @@
-Avatars
-Beatmaps
-Covers
-Flags
-Mods
-Ranks
-Users
-ex_bmp_data.json
-ex_score_data.json
-ex_user_data.json
-recent.png
-utils.pyc
 __pycache__
-/Fonts/Helvetica Neu Bold.ttf
-/Fonts/HelveticaNeue.ttf
-/Fonts/HelveticaNeue BlackCond.ttf
-/Fonts/HelveticaNeue Light.ttf
-/Fonts/HelveticaNeue Medium.ttf
-/Fonts/HelveticaNeue Thin.ttf
-/Fonts/HelveticaNeueBd.ttf
-/Fonts/HelveticaNeueHv.ttf
-/Fonts/HelveticaNeueIt.ttf
-/Fonts/HelveticaNeueLt.ttf
-/Fonts/HelveticaNeueMed.ttf
-config.ini
+venv/
+assets
+!assets/fonts
+!assets/icons
