@@ -152,10 +152,9 @@ class ScoreInteractions(commands.Cog):
         Can be used as an Application Command, or from the drop-down view of another message.
         """
         await interaction.response.defer()
-        await self._compare_core(interaction)
+        await self._compare_core(interaction, message)
 
-    async def _compare_core(self, interaction):
-        message = interaction.message
+    async def _compare_core(self, interaction, message: nextcord.Message):
         if not message.author.id == self.bot.application_id:
             raise CommandError("Couldn't find a score on this message. Please use it on a score.")
         # Check message embeds if it contains a score

@@ -28,7 +28,7 @@ class ScoreExtrasDropdown(nextcord.ui.Select):
 
         if self.values[0] == 'Compare':
             score_cog = bot.get_cog('ScoreInteractions')
-            await score_cog._compare_core(interaction)
+            await score_cog._compare_core(interaction, message=interaction.message)
         elif self.values[0] == 'Map info':
             map_cog: MapInteractions = bot.get_cog('MapInteractions')
             await map_cog._map_info_core(interaction)
