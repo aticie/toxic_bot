@@ -24,6 +24,24 @@ class ScoreInteractions(commands.Cog):
         self.db: Database = bot.db
 
     @commands.cooldown(1, 5, commands.BucketType.user)
+    @commands.command(name="recentbest", aliases=["rb"])
+    async def recent_best(self, ctx: Context, osu_username: Optional[str] = None,
+                          index: int = 1, game_mode: str = "osu"):
+        """
+        Shows the recent top play of a player
+        """
+        index -= 1
+        plays = await self.get_user_plays(interaction=ctx, game_mode=game_mode, name=osu_username, score_type='best',
+                                          all_scores=True)
+
+        if len(plays) == 0:
+            raise CommandError(f"`{osu_username}` has not played {game_mode} recently... :pensive:")
+
+        plays.sort(key=lambda x: x.created_at, reverse=True)
+
+        await self._single_score_core(index, plays, interaction=ctx)
+
+    @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="recent", aliases=["r", "rs"])
     async def recent(self, ctx: Context, index: int = 1, game_mode: str = "osu", osu_username: Optional[str] = None,
                      passes_only: bool = False):
@@ -36,24 +54,6 @@ class ScoreInteractions(commands.Cog):
                                           score_type='recent')
         if len(plays) == 0:
             raise CommandError(f"`{osu_username}` has not played {game_mode} recently... :pensive:")
-
-        await self._single_score_core(index, plays, interaction=ctx)
-
-    @commands.cooldown(1, 5, commands.BucketType.user)
-    @commands.command(name="recentbest", aliases=["rb"])
-    async def recent_best(self, ctx: Context, index: int = 1, game_mode: str = "osu",
-                          osu_username: Optional[str] = None,
-                          passes_only: bool = False):
-        """
-        Shows the recent top play of a player
-        """
-        index -= 1
-        plays = await self.get_user_plays(interaction=ctx, game_mode=game_mode, name=osu_username, score_type='best')
-
-        if len(plays) == 0:
-            raise CommandError(f"`{osu_username}` has not played {game_mode} recently... :pensive:")
-
-        plays.sort(key=lambda x: x.created_at, reverse=True)
 
         await self._single_score_core(index, plays, interaction=ctx)
 
@@ -135,7 +135,8 @@ class ScoreInteractions(commands.Cog):
         logger.debug(f'Recent slash command called with args: {name, game_mode, index, as_list}')
         await interaction.response.defer()
 
-        plays = await self.get_user_plays(interaction=interaction, game_mode=game_mode, name=name, score_type='best')
+        plays = await self.get_user_plays(interaction=interaction, game_mode=game_mode, name=name, score_type='best',
+                                          all_scores=True)
 
         if len(plays) == 0:
             raise CommandError(f"`{name}` has not played {game_mode} recently... :pensive:")
@@ -198,10 +199,13 @@ class ScoreInteractions(commands.Cog):
         await interaction.send(embed=embed, file=file, view=view)
 
     async def get_user_plays(self, interaction: Interaction, game_mode: str, name: str, score_type: str,
-                             passes_only: bool = False):
+                             passes_only: bool = False, all_scores: bool = False):
         user_id = await self.bot.get_user_id(interaction, name)
         plays = await self.api.get_user_scores(user_id=user_id, score_type=score_type, mode=game_mode,
                                                include_fails=0 if passes_only else 1)
+        if all_scores:
+            plays.extend(await self.api.get_user_scores(user_id=user_id, score_type=score_type, mode=game_mode,
+                                                        include_fails=0 if passes_only else 1, offset=50))
         return plays
 
     async def get_user_beatmap_scores(self, interaction: Interaction, name: str, beatmap_id: int):
