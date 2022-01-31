@@ -16,7 +16,7 @@ profile_extras_user_cooldowns = {}
 
 class ProfileExtrasView(nextcord.ui.View):
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout=None)
 
     @nextcord.ui.button(label='Show mine!', style=nextcord.ButtonStyle.blurple)
     async def confirm(self, button: nextcord.ui.Button, interaction: nextcord.Interaction):

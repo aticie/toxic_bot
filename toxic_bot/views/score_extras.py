@@ -42,7 +42,7 @@ class ScoreExtrasDropdown(nextcord.ui.Select):
 
 class ScoreExtrasView(nextcord.ui.View):
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout=None)
 
         # Adds the dropdown to our view object.
         self.add_item(ScoreExtrasDropdown())
