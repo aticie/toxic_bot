@@ -97,4 +97,4 @@ class MapCardFactory:
         pass
 
     def get_card(self):
-        return MapCard(self.beatmap_details)
+        return EmbedMapCard(self.beatmap_details)

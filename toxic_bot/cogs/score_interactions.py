@@ -57,7 +57,7 @@ class ScoreInteractions(commands.Cog):
 
         await self._single_score_core(index, plays, interaction=ctx)
 
-    @nextcord.slash_command(guild_ids=[...], name="rs",
+    @nextcord.slash_command(name="rs",
                             description="Shows the most recent play of a player")
     async def recent_interaction(self,
                                  interaction: Interaction,
@@ -106,7 +106,7 @@ class ScoreInteractions(commands.Cog):
         else:
             await self._single_score_core(index, plays, interaction=interaction)
 
-    @nextcord.slash_command(guild_ids=[...], name="rb",
+    @nextcord.slash_command(name="rb",
                             description="Shows the most recent top play of a player")
     async def recent_best_interaction(self,
                                       interaction: Interaction,
@@ -146,7 +146,7 @@ class ScoreInteractions(commands.Cog):
         else:
             await self._single_score_core(index, plays, interaction=interaction)
 
-    @nextcord.message_command(guild_ids=[...], name="Compare")
+    @nextcord.message_command(name="Compare")
     async def compare_command(self, interaction: Interaction, message: nextcord.Message):
         """
         Can be used as an Application Command, or from the drop-down view of another message.

@@ -1,6 +1,6 @@
 import logging
-from typing import Optional, Union
 import urllib.parse
+from typing import Optional, Union
 
 import nextcord
 from nextcord import SlashOption, Interaction
@@ -9,10 +9,10 @@ from nextcord.ext.commands import Context
 
 from toxic_bot.bots.discord import DiscordOsuBot
 from toxic_bot.cards.profilecard import ProfileCardFactory
+from toxic_bot.helpers.crypto import encrypt
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
 from toxic_bot.views.profile_extras import ProfileExtrasView
-from toxic_bot.helpers.crypto import encrypt
 
 logger = logging.getLogger('toxic-bot')
 
@@ -30,7 +30,7 @@ class Profile(commands.Cog):
         embed = await self._link_core(ctx.author.id)
         await ctx.author.send(embed=embed)
 
-    @nextcord.slash_command(guild_ids=[...], name="link",
+    @nextcord.slash_command(name="link",
                             description="Links your osu! account to your discord account.")
     async def link_slash(self, interaction: Interaction):
         """Link the discord account to user's osu! account"""
@@ -54,8 +54,7 @@ class Profile(commands.Cog):
                                description=f'[Click here]({urllib.parse.urlunparse(url)}) to link your discord account to your osu! account.')
         return embed
 
-    @nextcord.slash_command(guild_ids=[...], name="profile",
-                            description="Shows the specified user's osu! profile.")
+    @nextcord.slash_command(name="profile", description="Shows the specified user's osu! profile.")
     async def profile_slash(self, interaction: Interaction,
                             osu_username: str = SlashOption(
                                 name="name",

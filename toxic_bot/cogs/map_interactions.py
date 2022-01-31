@@ -14,8 +14,8 @@ class MapInteractions(commands.Cog):
         beatmap_id = int(embed_footer.split('|')[-1].split(',')[0])
         beatmap_info = await self.bot.api.get_beatmap(beatmap_id)
         map_card = MapCardFactory(beatmap_info).get_card()
-        embed, file = map_card.to_embed()
-        await interaction.send(embed=embed, file=file)
+        embed = await map_card.to_embed()
+        await interaction.send(embed=embed)
 
 
 def setup(bot):
