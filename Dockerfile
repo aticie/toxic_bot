@@ -1,7 +1,10 @@
-FROM python:3.9
+FROM rust:1.59.0-slim
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH $PATH:/root/.cargo/bin
+# Install Python
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+# Install git
+RUN apt-get update && apt-get install -y git
 
 WORKDIR /bot
 ENV PYTHONPATH /bot
