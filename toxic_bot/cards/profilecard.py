@@ -20,7 +20,7 @@ class ProfileCard:
 
     def __init__(self, user_details: SimpleNamespace):
         self.user = user_details
-        self.game_mode = self.game_mode_dict[user_details.rankHistory.mode]
+        self.game_mode = self.game_mode_dict[user_details.playmode]
 
     def to_embed(self):
         """
