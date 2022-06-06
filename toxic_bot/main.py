@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import traceback
 
 import nextcord
 from nextcord import Interaction
@@ -71,8 +72,7 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
     """
     Logs errors to the console.
     """
-
-    logger.error(f"{ctx.author} in {ctx.guild} failed to execute {ctx.command} with error: {exception}")
+    logger.error(f"{ctx.author} in {ctx.guild} failed to execute {ctx.command} with error: {exception}", exc_info=exception)
     embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
 
     if isinstance(exception, errors.BadArgument):
@@ -90,8 +90,7 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
 @bot.event
 async def on_error(event: str, *args, **kwargs):
     exception = sys.exc_info()
-    logger.error(f"An error occurred in {event} with args: {args} and kwargs: {kwargs}")
-    logger.error(f"{exception}")
+    logger.error(f"An error occurred in {event} with args: {args} and kwargs: {kwargs}", exc_info=exception)
 
     embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
 

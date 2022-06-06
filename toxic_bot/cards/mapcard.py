@@ -76,7 +76,7 @@ class EmbedMapCard(MapCard, ABC):
                     f"{diff_details_text} \n" \
                     f"{download_text}\n"
 
-        pp_values = [result.pp for result in rosu_pp_results[1::-1]]
+        pp_values = [result.pp for result in rosu_pp_results[-2::-1]]
         pp_values_text = f'```Acc |{"95%":^8}|{"97%":^8}|{"99%":^8}|{"100%":^8}|\n' \
                          f'----|' + '-' * 8 + '|' + '-' * 8 + '|' + '-' * 8 + '|' + '-' * 8 + '|' + '\n' \
                                                                                                     f' PP |{pp_values[0]:^8.2f}|{pp_values[1]:^8.2f}|{pp_values[2]:^8.2f}|{pp_values[3]:^8.2f}|```'
