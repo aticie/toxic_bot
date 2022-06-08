@@ -1,8 +1,7 @@
-import io
 from abc import ABC
 from datetime import datetime, timezone
 from types import SimpleNamespace
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import PIL
 import nextcord
@@ -152,5 +151,5 @@ class ScoreCardFactory(object):
         else:
             self.score_card = SingleImageScoreCard(scores, index)
 
-    def get_card(self) -> ScoreCard:
+    def get_card(self) -> Union[SingleImageScoreCard, MultiEmbedScoreCard]:
         return self.score_card

@@ -72,7 +72,7 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
     """
     Logs errors to the console.
     """
-    logger.error(f"{ctx.author} in {ctx.guild} failed to execute {ctx.command} with error: {exception}", exc_info=exception)
+    logger.error(f"{ctx.author} in {ctx.guild} failed to execute {ctx.command} with error.", exc_info=exception)
     embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
 
     if isinstance(exception, errors.BadArgument):
@@ -85,6 +85,23 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
         embed.description = f"Details: {exception}"
 
     await ctx.send(embed=embed)
+
+@bot.event
+async def on_application_command_error(interaction: Interaction, exception: nextcord.ApplicationError):
+    """
+    Logs errors to the console and sends a message to chat.
+    """
+    logger.error(f"{interaction.user} in {interaction.guild} failed to execute {interaction.application_command}"
+                 f" with error.", exc_info=exception)
+    embed = nextcord.Embed(title="An error occurred", colour=0xFF0000)
+
+    if isinstance(exception, nextcord.ApplicationInvokeError):
+        embed.description = f"{exception.original}"
+    else:
+        embed.description = f"{exception}"
+
+    await interaction.send(embed=embed)
+
 
 
 @bot.event

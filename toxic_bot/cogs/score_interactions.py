@@ -1,6 +1,6 @@
 import logging
 from types import SimpleNamespace
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import nextcord
 from nextcord import SlashOption, Interaction
@@ -9,7 +9,7 @@ from nextcord.ext import commands
 from nextcord.ext.commands import CommandError, Context
 
 from toxic_bot.bots.discord import DiscordOsuBot
-from toxic_bot.cards.scorecard import ScoreCardFactory
+from toxic_bot.cards.scorecard import ScoreCardFactory, SingleImageScoreCard
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
 from toxic_bot.views.score_extras import ScoreExtrasView
@@ -186,11 +186,11 @@ class ScoreInteractions(commands.Cog):
         await interaction.send(embed=embed)
 
     async def _single_score_core(self, play_index: int, plays: List[SimpleNamespace],
-                                 interaction: Interaction):
+                                 interaction: Union[Interaction, Context]):
         """
         Core function for single score commands
         """
-        play_card = ScoreCardFactory(plays, play_index).get_card()
+        play_card: SingleImageScoreCard = ScoreCardFactory(plays, play_index).get_card()
         if not hasattr(play_card.score, 'beatmapset'):
             beatmap = await self.api.get_beatmap(play_card.score.beatmap.id)
             play_card.score.beatmapset = beatmap.beatmapset
@@ -198,7 +198,7 @@ class ScoreInteractions(commands.Cog):
         view = ScoreExtrasView()
         await interaction.send(embed=embed, file=file, view=view)
 
-    async def get_user_plays(self, interaction: Interaction, game_mode: str, name: str, score_type: str,
+    async def get_user_plays(self, interaction: Union[Context, Interaction], game_mode: str, name: str, score_type: str,
                              passes_only: bool = False, all_scores: bool = False):
         user_id = await self.bot.get_user_id(interaction, name)
         plays = await self.api.get_user_scores(user_id=user_id, score_type=score_type, mode=game_mode,
@@ -208,7 +208,7 @@ class ScoreInteractions(commands.Cog):
                                                         include_fails=0 if passes_only else 1, offset=50))
         return plays
 
-    async def get_user_beatmap_scores(self, interaction: Interaction, name: str, beatmap_id: int):
+    async def get_user_beatmap_scores(self, interaction: Union[Context, Interaction], name: str, beatmap_id: int):
         user_id = await self.bot.get_user_id(interaction, name)
         plays = await self.api.get_user_beatmap_score(user_id=user_id, beatmap_id=beatmap_id)
         return plays
