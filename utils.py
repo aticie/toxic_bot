@@ -941,16 +941,17 @@ def add_embed_fields_on_country(country_data, offset):
     for player_placement, score in enumerate(country_data):
         player_name = score["user"]["username"]
         player_id = score["user_id"]
-        player_score = score["score"]
+        player_score = score["total_score"]
         player_score = make_readable_score(player_score)
         player_combo = score["max_combo"]
         mods_list = score["mods"]
-        player_mods = "".join(mods_list) if len(mods_list) > 0 else "NoMod"
+        player_mods = "".join([mod["acronym"] for mod in mods_list]) if len(mods_list) > 0 else "NoMod"
         player_acc = float(score["accuracy"]) * 100
         player_pp = score["pp"]
         player_rank = fix_rank(score["rank"])
-        player_play_date = score["created_at"][:10].replace("-", "/")
-        player_miss = score["statistics"]["count_miss"]
+        player_play_date = score["ended_at"][:10].replace("-", "/")
+        player_statistics = score["statistics"]
+        player_miss = player_statistics['miss'] if 'miss' in player_statistics else 0
         player_url = f"https://osu.ppy.sh/users/{player_id}"
         field_value += f"**{player_placement + offset + 1}. [{player_name}]({player_url})** - {player_play_date}\n"
         if player_pp is None:
