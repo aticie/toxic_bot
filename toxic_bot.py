@@ -1003,7 +1003,7 @@ async def show_country(ctx, *args):
         return
 
     put_recent_on_file(bmap_id, channel_id)
-    country_data = await get_country_rankings_v2(bmap_id, requested_mods)
+    country_data = await get_country_rankings_v3(bmap_id, requested_mods)
     bmap_data = await get_bmap_data(bmap_id)
     if len(country_data) == 0:
         await ctx.send("Ülke sıralamasında kimsenin skoru yok 😔")

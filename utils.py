@@ -842,6 +842,25 @@ async def get_country_rankings_v2(bmap_id, mods):
 
     return decoded["scores"]
 
+async def get_country_rankings_v3(bmap_id, mods):
+    country_url = f"https://osu.ppy.sh/beatmaps/{bmap_id}/scores"
+    mods = mods.upper()
+    mods_array = [("mods[]", mods[i:i + 2]) for i in range(0, len(mods), 2)]
+    header = {
+        'cookie': f'osu_session={os.getenv("OSU_SESSION_KEY")}',
+    }
+    mods_array.append(("type", "country"))
+    mods_array.append(("mode", "osu"))
+    country_params = mods_array
+
+    async with aiohttp.ClientSession() as session:
+        async with session.get(country_url, params=country_params, headers=header) as country_rsp:
+            country_content = await country_rsp.read()
+
+    decoded = json.loads(country_content.decode('ISO-8859-1'))
+
+    return decoded["scores"]
+
 
 async def get_country_rankings(bmap_data):
     country_url = f"https://osu.ppy.sh/web/osu-osz2-getscores.php"
