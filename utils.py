@@ -853,6 +853,10 @@ async def get_country_rankings_v3(bmap_id, mods):
     mods_array.append(("mode", "osu"))
     country_params = mods_array
 
+    logger.info(f"Requesting country with:")
+    logger.info(f"{country_url=}")
+    logger.info(f"{country_params=}")
+    logger.info(f"{header=}")
     async with aiohttp.ClientSession() as session:
         async with session.get(country_url, params=country_params, headers=header) as country_rsp:
             country_content = await country_rsp.read()
