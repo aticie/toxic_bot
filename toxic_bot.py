@@ -16,21 +16,15 @@ discord.Intents.messages = True
 
 @tasks.loop(hours=8)
 async def refresh_token():
-    with open("oauth2_token.json", "r") as f:
-        tokens = json.load(f)
-
     refresh_url = "https://osu.ppy.sh/oauth/token"
     data = FormData()
-    data.add_field("grant_type", "refresh_token")
-    data.add_field("client_id", "703")
+    data.add_field("grant_type", "client_credentials")
+    data.add_field("client_id", os.getenv("CLIENT_ID"))
     data.add_field("client_secret", os.environ["CLIENT_SECRET"])
-    data.add_field("refresh_token", tokens["refresh_token"])
+    data.add_field("scope", "public")
     async with aiohttp.ClientSession() as session:
         async with session.post(refresh_url, data=data) as r:
             new_tokens = await r.json()
-
-    with open("oauth2_token.json", "w") as f:
-        json.dump(new_tokens, f)
 
     os.environ["OAUTH2_TOKEN"] = new_tokens["access_token"]
     return
