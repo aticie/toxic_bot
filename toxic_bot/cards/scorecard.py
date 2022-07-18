@@ -60,7 +60,7 @@ class ImageScoreCard(ScoreCard, ABC):
                          icon_url=self.score.user.avatar_url)
         embed.set_image(url="attachment://score.png")
         footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.fromisoformat(self.score.created_at))
-        embed.set_footer(text=f'▸ Score set {footer_time}Ago | {self.score.beatmap.id},{self.score.user.id}')
+        embed.set_footer(text=f'▸ Score set {footer_time}Ago')
         return embed, file
 
 

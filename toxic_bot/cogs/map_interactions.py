@@ -10,8 +10,8 @@ class MapInteractions(commands.Cog):
         self.bot: DiscordOsuBot = bot
 
     async def _map_info_core(self, interaction: Interaction) -> dict:
-        embed_footer = interaction.message.embeds[0].footer.text
-        beatmap_id = int(embed_footer.split('|')[-1].split(',')[0])
+        embed_url = interaction.message.embeds[0].url
+        beatmap_id = int(embed_url.split('/')[-1])
         beatmap_info = await self.bot.api.get_beatmap(beatmap_id)
         map_card = MapCardFactory(beatmap_info).get_card()
         embed = await map_card.to_embed()

@@ -167,7 +167,7 @@ class ScoreInteractions(commands.Cog):
                 raise CommandError("Couldn't find a score on this message. Please use compare on a score.")
             else:
                 # Get beatmap_id and score_user_id from the footer
-                beatmap_id, score_user_id = footer.split('|')[1].strip().split(',')
+                beatmap_id = embed.url.split('/')[-1]
                 # Get the user id of the interaction user
                 user_id = f'<@{interaction.user.id}>'
                 plays = await self.get_user_beatmap_scores(interaction, user_id, beatmap_id)

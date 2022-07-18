@@ -44,12 +44,17 @@ initial_extensions = ["cogs.score_interactions",
                       "cogs.map_interactions",
                       "cogs.profile"]
 
+
+intents = nextcord.Intents.default()
+intents.message_content = True
+
 bot = DiscordOsuBot(default_prefix=default_prefix,
                     osu_client_id=args.client_id,
                     osu_client_secret=args.client_secret,
                     case_insensitive=True,
                     description=f"{default_prefix} is my default prefix",
-                    osu_redirect_uri=args.redirect_uri)
+                    osu_redirect_uri=args.redirect_uri,
+                    intents=intents)
 
 
 @bot.command(name="prefix")
@@ -131,5 +136,4 @@ if __name__ == "__main__":
     for extension in initial_extensions:
         bot.load_extension(extension)
 
-intents = nextcord.Intents.all()
 bot.run(args.discord_token, reconnect=True)

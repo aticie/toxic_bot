@@ -85,7 +85,7 @@ class Profile(commands.Cog):
 
         return user_details
 
-    async def _profile_core(self, interaction: Interaction, osu_username: Optional[str]):
+    async def _profile_core(self, interaction: Union[Context, Interaction], osu_username: Optional[str]):
         user_details = await self.get_user_details(interaction, osu_username)
         profile_card = ProfileCardFactory(user_details).get_card()
         embed, file = await profile_card.to_embed()
