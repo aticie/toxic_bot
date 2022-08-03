@@ -12,7 +12,7 @@ from rosu_pp_py import Calculator, ScoreParams
 
 from toxic_bot.helpers.http_downloader import download_and_save_asset, download_and_save_beatmap
 from toxic_bot.helpers.image import PPTextBox, ScoreBox, StarRatingTextBox, TitleTextBox, DifficultyTextBox, \
-    JudgementsBox, ModsIcon, ScoreGradeVisual, pillow_image_to_discord_file
+    JudgementsBox, ModsIcon, ScoreGradeVisual, pillow_image_to_discord_file, IfFCTextBox
 from toxic_bot.helpers.primitives import Point
 from toxic_bot.helpers.time import time_ago
 
@@ -60,7 +60,7 @@ class ImageScoreCard(ScoreCard, ABC):
                          icon_url=self.score.user.avatar_url)
         embed.set_image(url="attachment://score.png")
         footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.fromisoformat(self.score.created_at))
-        embed.set_footer(text=f'▸ Score set {footer_time}Ago | {self.score.beatmap.id},{self.score.user.id}')
+        embed.set_footer(text=f'▸ Score set {footer_time}Ago')
         return embed, file
 
 
@@ -124,7 +124,14 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
                                                                       Point(cover.width - right_offset + 70, 70))
         ModsIcon(mods).draw(cover, Point(cover.width - right_offset + 80, 130))
         ScoreGradeVisual(score_grade).draw(cover_draw, Point(cover.width - right_offset + 160, 40))
-        PPTextBox(score.pp, score_grade).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 80))
+        PPTextBox(score.pp, score_grade).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 90))
+        [if_FC_result] = calculator.calculate(ScoreParams(mods=mods.value,
+                                                          n300=score.statistics.count_300,
+                                                          n100=score.statistics.count_100,
+                                                          n50=score.statistics.count_50,
+                                                          nMisses=0,
+                                                          combo=beatmap.max_combo))
+        IfFCTextBox(if_FC_result.pp).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 30))
 
         return cover
 
