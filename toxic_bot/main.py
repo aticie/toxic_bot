@@ -52,7 +52,7 @@ bot = DiscordOsuBot(default_prefix=default_prefix,
                     osu_client_id=args.client_id,
                     osu_client_secret=args.client_secret,
                     case_insensitive=True,
-                    description=f"{default_prefix} is my default prefix",
+                    description=f"heyrullah the osu! bot. {default_prefix} is my default prefix",
                     osu_redirect_uri=args.redirect_uri,
                     intents=intents)
 

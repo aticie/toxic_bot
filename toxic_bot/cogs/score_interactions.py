@@ -43,7 +43,7 @@ class ScoreInteractions(commands.Cog):
 
     @commands.cooldown(1, 5, commands.BucketType.user)
     @commands.command(name="recent", aliases=["r", "rs"])
-    async def recent(self, ctx: Context, index: int = 1, game_mode: str = "osu", osu_username: Optional[str] = None,
+    async def recent(self, ctx: Context, osu_username: Optional[str] = None, index: int = 1, game_mode: str = "osu",
                      passes_only: bool = False):
         """
         Shows the recent play of a player

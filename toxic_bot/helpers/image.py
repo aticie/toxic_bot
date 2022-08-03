@@ -60,13 +60,13 @@ class TextBox:
 class TitleTextBox(TextBox):
     def __init__(self, text):
         color = (255, 255, 255, 255)
-        super().__init__(text, color)
+        super().__init__(text, color, font_size=32)
 
 
 class DifficultyTextBox(TextBox):
     def __init__(self, text):
         color = (255, 255, 255, 255)
-        super().__init__(text, color, font_size=16)
+        super().__init__(text, color, font_size=24)
 
 
 class JudgementTextBox(TextBox):
@@ -233,6 +233,14 @@ class PPTextBox(TextBox):
         clr = add_v(begin_hsl, mul(step, r))
         rgb_clr = Color(hsl=clr).get_rgb()
         return tuple(map(int, mul(rgb_clr, 255)))
+
+
+class IfFCTextBox(TextBox):
+    def __init__(self, pp: float):
+        self.pp_text = f'{pp:.0f}pp FC'
+        font_size = 36
+        color = '#4c4c4c'
+        super().__init__(self.pp_text, color, font_size=font_size, stroke_width=2, stroke_fill=(255, 255, 255, 255))
 
 
 class ModsIcon:
