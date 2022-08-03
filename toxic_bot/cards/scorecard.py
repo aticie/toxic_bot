@@ -110,12 +110,12 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
         difficulty_margin = title_margin + Point(0, difficulty_height)
         title.draw(cover_draw, title_margin, cover.width - right_offset)
         difficulty.draw(cover_draw, difficulty_margin, cover.width - right_offset)
-        difficulty_height = difficulty.get_real_textsize(difficulty.text, difficulty.font)[1]
+        difficulty_height = difficulty.get_real_textsize(difficulty.text, difficulty.font)[1] - 10
 
         judgement_pos = Point(20, difficulty_margin[1] + difficulty_height)
         JudgementsBox(score.statistics, cover.width - right_offset).draw(cover_draw, judgement_pos)
 
-        scorebox_pos = judgement_pos + Point(0, 90)
+        scorebox_pos = judgement_pos + Point(0, 80)
         ScoreBox(score, cover.width - right_offset).draw(cover_draw, scorebox_pos)
 
         score_grade = Grade(score.rank)
