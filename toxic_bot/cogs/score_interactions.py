@@ -162,12 +162,13 @@ class ScoreInteractions(commands.Cog):
     async def country_interaction(self,
                                   interaction: Interaction,
                                   beatmap_id: int = SlashOption(
-                                      name="Beatmap ID",
+                                      name="beatmap_id",
                                       description="Beatmap ID for the country rankings",
                                       required=True)):
         """
         Shows the Turkish country rankings for the beatmap
         """
+        logger.debug(f'Country slash command called with args: {beatmap_id}')
         await interaction.response.defer()
         await self.country_core(interaction, beatmap_id)
 
