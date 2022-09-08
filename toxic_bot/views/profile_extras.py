@@ -25,7 +25,7 @@ class ProfileExtrasView(nextcord.ui.View):
 
         bot: DiscordOsuBot = interaction.client
         profile_cog = bot.get_cog('Profile')
-        await profile_cog._profile_core(interaction, osu_username=None)
+        await profile_cog.profile_core(interaction, osu_username=None)
 
     async def _check_cooldown(self, interaction: Interaction):
         user_id = interaction.user.id

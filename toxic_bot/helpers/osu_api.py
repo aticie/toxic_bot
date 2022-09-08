@@ -1,11 +1,11 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import List, Dict, Optional, Union, Any
 
 import aiohttp
 from multidict import CIMultiDict
-from types import SimpleNamespace
 
 logger = logging.getLogger('toxic-bot')
 
@@ -15,10 +15,11 @@ class OsuApiV2(aiohttp.ClientSession):
     Async wrapper for osu! api v2
     """
 
-    def __init__(self, client_id: str, client_secret: str):
+    def __init__(self, client_id: str, client_secret: str, osu_session_key: str):
         super(OsuApiV2, self).__init__()
         self._default_headers = CIMultiDict()
         self._osu_client_id = client_id
+        self._osu_session_key = osu_session_key
         self._osu_client_secret = client_secret
         self._osu_api_base_url = 'https://osu.ppy.sh/api/v2/'
 
@@ -31,7 +32,7 @@ class OsuApiV2(aiohttp.ClientSession):
 
         return
 
-    async def get_user_beatmap_score(self, user_id: int, beatmap_id: int):
+    async def get_user_beatmap_score(self, user_id: int, beatmap_id: int, mode: str = "osu"):
         """
         Gets the score for the specified user and beatmap.
         :param user_id: The ID of the user.
@@ -63,6 +64,30 @@ class OsuApiV2(aiohttp.ClientSession):
                   "offset": offset}
         logger.debug(f'Requesting user {score_type} ranks with {params}')
         return await self._get_endpoint(f'users/{user_id}/scores/{score_type}', params)
+
+    async def get_country_beatmap_scores(self, beatmap_id: int):
+        """
+        Retrieves the Turkish country leaderboard for the specified beatmap ID.
+        :param beatmap_id: The ID of the beatmap.
+
+        :return: Returns multiple score objects
+        """
+        params = {
+            "type": "country",
+            "mode": "osu",
+        }
+        header = {
+            'cookie': f'osu_session={self._osu_session_key}',
+        }
+        logger.debug(f'Requesting country ranks with {params}')
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://osu.ppy.sh/beatmaps/{beatmap_id}/scores",
+                                   params=params,
+                                   headers=header) as country_rsp:
+                country_content = await country_rsp.json()
+
+        return self._format_response(country_content["scores"])
 
     async def get_country_top_50(self, country_code: str, game_mode: str = 'osu'):
         """

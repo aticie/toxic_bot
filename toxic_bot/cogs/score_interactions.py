@@ -1,10 +1,11 @@
+import datetime
 import logging
 from types import SimpleNamespace
 from typing import List, Optional, Union
 
 import nextcord
 from nextcord import SlashOption, Interaction
-from nextcord.embeds import _EmptyEmbed
+from nextcord.embeds import _EmptyEmbed, Embed
 from nextcord.ext import commands
 from nextcord.ext.commands import CommandError, Context
 
@@ -12,6 +13,7 @@ from toxic_bot.bots.discord import DiscordOsuBot
 from toxic_bot.cards.scorecard import ScoreCardFactory, SingleImageScoreCard
 from toxic_bot.helpers.database import Database
 from toxic_bot.helpers.osu_api import OsuApiV2
+from toxic_bot.helpers.paginated_view import PaginatedView
 from toxic_bot.views.score_extras import ScoreExtrasView
 
 logger = logging.getLogger('toxic-bot')
@@ -153,9 +155,9 @@ class ScoreInteractions(commands.Cog):
         Can be used as an Application Command, or from the drop-down view of another message.
         """
         await interaction.response.defer()
-        await self._compare_core(interaction, message)
+        await self.compare_core(interaction, message)
 
-    async def _compare_core(self, interaction, message: nextcord.Message):
+    async def compare_core(self, interaction, message: nextcord.Message):
         if not message.author.id == self.bot.application_id:
             raise CommandError("Couldn't find a score on this message. Please use it on a score.")
         # Check message embeds if it contains a score
@@ -179,6 +181,68 @@ class ScoreInteractions(commands.Cog):
                     await self._multi_score_core(plays, interaction)
         else:
             raise CommandError("Couldn't find a score on this message. Please use compare on a score.")
+
+    async def country_core(self, interaction, message: nextcord.Message):
+        embed = message.embeds[0]
+        beatmap_id = embed.url.split('/')[-1]
+        country_scores = await self.api.get_country_beatmap_scores(beatmap_id=beatmap_id)
+        beatmap_metadata = await self.api.get_beatmap(beatmap_id=beatmap_id)
+        await self._country_scores_core(country_scores, beatmap_metadata, interaction)
+
+    async def _country_scores_core(self, plays: List[SimpleNamespace],
+                                   beatmap_meta: SimpleNamespace,
+                                   interaction: Interaction):
+        embeds = await self.country_scores_to_embed(plays, beatmap_meta)
+        view = PaginatedView(embeds)
+        await interaction.send(embed=embeds[0], view=view)
+
+    async def country_scores_to_embed(self, plays: List[SimpleNamespace], beatmap_meta: SimpleNamespace) -> List[Embed]:
+        embeds: List[Embed] = []
+        for i in range(0, len(plays), 5):
+            embed = Embed()
+            beatmap_artist = beatmap_meta.beatmapset.artist
+            beatmap_title = beatmap_meta.beatmapset.title
+            beatmap_version = beatmap_meta.version
+            beatmap_stars = f"{beatmap_meta.difficulty_rating:.2f}"
+            beatmap_creator = beatmap_meta.beatmapset.creator
+            beatmap_url = beatmap_meta.url
+            beatmap_cover_url = beatmap_meta.beatmapset.covers.cover
+
+            embed.title = f"{beatmap_artist} - {beatmap_title} ({beatmap_creator}) [{beatmap_version}] {beatmap_stars}⭐"
+            embed.url = beatmap_url
+
+            embed.set_image(url=beatmap_cover_url)
+            embed.set_author(name="Turkey Country Ranks", icon_url="https://osu.ppy.sh/images/flags/TR.png")
+
+            plays_chunked = plays[i:i + 5]
+
+            embed_desc = ""
+            for offset, play in enumerate(plays_chunked):
+                player_name = play.user.username
+                player_id = play.user_id
+                player_score = f"{play.total_score:,}"
+                player_combo = play.max_combo
+                mods_list = play.mods
+                player_mods = "".join([mod["acronym"] for mod in mods_list]) if len(mods_list) > 0 else "NoMod"
+                player_acc = f"{play.accuracy * 100:.2f}%"
+                player_pp = play.pp
+                player_rank = play.rank
+                player_statistics = play.statistics
+                player_miss = player_statistics.miss if hasattr(player_statistics, "miss") else 0
+                play_ts = int(datetime.datetime.fromisoformat(play.ended_at).timestamp())
+                player_url = f"https://osu.ppy.sh/users/{player_id}"
+                embed_desc += f"**{i * 5 + offset + 1}. [{player_name}]({player_url})** - <t:{play_ts}:d>\n"
+                if player_pp is None:
+                    embed_desc += f"**{player_rank} Rank** - {player_score} (x{player_combo}) -" \
+                                  f" {player_acc} {player_mods} - ({player_miss} miss)\n\n"
+                else:
+                    embed_desc += f"**{player_rank} Rank** - {player_score} (x{player_combo}) -" \
+                                  f" {player_acc} {player_mods} - **{player_pp:.2f}pp** ({player_miss} miss)\n\n"
+
+            embed.description = embed_desc
+            embeds.append(embed)
+
+        return embeds
 
     async def _multi_score_core(self, plays: List[SimpleNamespace],
                                 interaction: Interaction):

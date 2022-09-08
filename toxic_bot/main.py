@@ -23,6 +23,8 @@ parser.add_argument('--client_id', type=str, default='', help='Client ID for the
 parser.add_argument('--client_secret', type=str, default='', help='Client secret for the osu!api v2.')
 parser.add_argument('--redirect_uri', type=str, default='https://auth.ronnia.me/',
                     help='Redirect uri, required for linking osu! account.')
+parser.add_argument('--osu_session_key', type=str, required=True,
+                    help='Osu session key, required for country leaderboards.')
 
 args = parser.parse_args()
 
@@ -54,6 +56,7 @@ bot = DiscordOsuBot(default_prefix=default_prefix,
                     case_insensitive=True,
                     description=f"heyrullah the osu! bot. {default_prefix} is my default prefix",
                     osu_redirect_uri=args.redirect_uri,
+                    osu_session_key=args.osu_session_key,
                     intents=intents)
 
 

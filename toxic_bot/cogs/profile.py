@@ -67,13 +67,13 @@ class Profile(commands.Cog):
                                 default="osu",
                                 choices=["osu", "taiko", "fruits", "mania"])):
         await interaction.response.defer()
-        await self._profile_core(interaction, osu_username)
+        await self.profile_core(interaction, osu_username)
 
     @commands.cooldown(1, 10, commands.BucketType.user)
     @commands.command(name="osu")
     async def profile(self, ctx: Context, osu_username: Optional[str], mode: str = 'osu'):
         """Shows the specified user's osu! profile"""
-        await self._profile_core(ctx, osu_username)
+        await self.profile_core(ctx, osu_username)
 
     async def get_user_details(self, interaction: Union[Context, Interaction], name: str):
         user_from_db = await self.bot.get_user_from_db(interaction, name)
@@ -85,7 +85,7 @@ class Profile(commands.Cog):
 
         return user_details
 
-    async def _profile_core(self, interaction: Union[Context, Interaction], osu_username: Optional[str]):
+    async def profile_core(self, interaction: Union[Context, Interaction], osu_username: Optional[str]):
         user_details = await self.get_user_details(interaction, osu_username)
         profile_card = ProfileCardFactory(user_details).get_card()
         embed, file = await profile_card.to_embed()

@@ -16,7 +16,11 @@ logger = logging.getLogger('toxic-bot')
 
 class DiscordOsuBot(commands.Bot, ABC):
 
-    def __init__(self, default_prefix: str, osu_client_id, osu_client_secret, osu_redirect_uri,
+    def __init__(self, default_prefix: str,
+                 osu_client_id: str,
+                 osu_client_secret: str,
+                 osu_redirect_uri: str,
+                 osu_session_key: str,
                  *args, **kwargs):
         super().__init__(command_prefix=self.get_prefix, *args, **kwargs)
         self.db: Database = Database()
@@ -24,7 +28,7 @@ class DiscordOsuBot(commands.Bot, ABC):
         self.osu_client_id = osu_client_id
         self.osu_client_secret = osu_client_secret
         self.osu_redirect_uri = osu_redirect_uri
-        self.api = OsuApiV2(osu_client_id, osu_client_secret)
+        self.api = OsuApiV2(osu_client_id, osu_client_secret, osu_session_key)
 
         # Generate encryption key for web server communication
         self.encryption_key = None
