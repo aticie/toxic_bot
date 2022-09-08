@@ -20,7 +20,7 @@ class Database:
         Initialize database
         :return: Creates tables
         """
-        self.c = aioredis.from_url(self.redis_url)
+        self.c = aioredis.from_url(self.redis_url, decode_responses=True)
         logger.debug(f"Connected to redis {self.redis_url}")
 
     async def set_encrypt_key(self, encryption_key: bytes):
