@@ -1,4 +1,5 @@
 import logging
+import os
 from abc import ABC
 from typing import Union
 
@@ -23,7 +24,7 @@ class DiscordOsuBot(commands.Bot, ABC):
                  osu_session_key: str,
                  *args, **kwargs):
         super().__init__(command_prefix=self.get_prefix, *args, **kwargs)
-        self.db: Database = Database()
+        self.db: Database = Database(os.getenv("REDIS_URL"))
         self.default_prefix = default_prefix
         self.osu_client_id = osu_client_id
         self.osu_client_secret = osu_client_secret
