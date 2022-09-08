@@ -33,7 +33,6 @@ class DiscordOsuBot(commands.Bot, ABC):
 
         # Generate encryption key for web server communication
         self.encryption_key = None
-        self.encryption_key_path = '/database/key.bin'
 
     async def close(self) -> None:
         await super().close()
@@ -60,7 +59,8 @@ class DiscordOsuBot(commands.Bot, ABC):
     async def on_ready(self):
         logger.info(f'Logged in as: {self.user.name} - {self.user.id}')
         await self.db.initialize()
-        self.encryption_key = generate_encryption_key(self.encryption_key_path)
+        self.encryption_key = generate_encryption_key()
+        await self.db.set_encrypt_key(self.encryption_key)
 
     async def get_user_id(self, interaction: Interaction, name: str):
 

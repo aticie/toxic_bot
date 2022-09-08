@@ -1,4 +1,3 @@
-import datetime
 import logging
 
 import aioredis
@@ -23,6 +22,13 @@ class Database:
         """
         self.c = aioredis.from_url(self.redis_url)
         logger.debug(f"Connected to redis {self.redis_url}")
+
+    async def set_encrypt_key(self, encryption_key: bytes):
+        await self.c.set("encrypt_key", encryption_key.decode("utf-8"))
+        return
+
+    async def get_encrypt_key(self) -> bytes:
+        return await self.c.get("encrypt_key").encode("utf-8")
 
     async def get_prefix(self, guild_id: int):
         """

@@ -1,10 +1,8 @@
 from cryptography.fernet import Fernet
+from toxic_bot.helpers.database import Database
 
-
-def generate_encryption_key(save_path: str) -> bytes:
+def generate_encryption_key() -> bytes:
     key = Fernet.generate_key()
-    with open(save_path, 'wb') as f:
-        f.write(key)
     return key
 
 
