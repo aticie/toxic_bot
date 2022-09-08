@@ -32,7 +32,9 @@ class ScoreExtrasDropdown(nextcord.ui.Select):
         if self.values[0] == 'Compare':
             await score_cog.compare_core(interaction, message=interaction.message)
         if self.values[0] == 'Country':
-            await score_cog.country_core(interaction, message=interaction.message)
+            embed = interaction.message.embeds[0]
+            beatmap_id = embed.url.split('/')[-1]
+            await score_cog.country_core(interaction, beatmap_id)
         elif self.values[0] == 'Map info':
             await map_cog.map_info_core(interaction)
         elif self.values[0] == 'Profile':

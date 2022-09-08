@@ -157,6 +157,20 @@ class ScoreInteractions(commands.Cog):
         await interaction.response.defer()
         await self.compare_core(interaction, message)
 
+    @nextcord.slash_command(name="ct",
+                            description="Shows the Turkish leaderboard of the beatmap")
+    async def country_interaction(self,
+                                  interaction: Interaction,
+                                  beatmap_id: int = SlashOption(
+                                      name="Beatmap ID",
+                                      description="Beatmap ID for the country rankings",
+                                      required=True)):
+        """
+        Shows the Turkish country rankings for the beatmap
+        """
+        await interaction.response.defer()
+        await self.country_core(interaction, beatmap_id)
+
     async def compare_core(self, interaction, message: nextcord.Message):
         if not message.author.id == self.bot.application_id:
             raise CommandError("Couldn't find a score on this message. Please use it on a score.")
@@ -182,9 +196,7 @@ class ScoreInteractions(commands.Cog):
         else:
             raise CommandError("Couldn't find a score on this message. Please use compare on a score.")
 
-    async def country_core(self, interaction, message: nextcord.Message):
-        embed = message.embeds[0]
-        beatmap_id = embed.url.split('/')[-1]
+    async def country_core(self, interaction, beatmap_id: int):
         country_scores = await self.api.get_country_beatmap_scores(beatmap_id=beatmap_id)
         beatmap_metadata = await self.api.get_beatmap(beatmap_id=beatmap_id)
         await self._country_scores_core(country_scores, beatmap_metadata, interaction)
@@ -196,7 +208,8 @@ class ScoreInteractions(commands.Cog):
         view = PaginatedView(embeds)
         await interaction.send(embed=embeds[0], view=view)
 
-    async def country_scores_to_embed(self, plays: List[SimpleNamespace], beatmap_meta: SimpleNamespace) -> List[Embed]:
+    @staticmethod
+    async def country_scores_to_embed(plays: List[SimpleNamespace], beatmap_meta: SimpleNamespace) -> List[Embed]:
         embeds: List[Embed] = []
         for i in range(0, len(plays), 5):
             embed = Embed()
