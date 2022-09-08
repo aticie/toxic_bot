@@ -3,6 +3,6 @@ rosu-pp-py==0.7.2
 ossapi==2.3.0
 colour==0.1.5
 numpy==1.21.4
-aiosqlite==0.17.0
+aioredis==2.0.1
 svglib==1.2.1
 cryptography==36.0.1

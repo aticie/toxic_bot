@@ -87,7 +87,7 @@ class DiscordOsuBot(commands.Bot, ABC):
                 user_discord_id = int(name[2:-1])
                 user_details = await self._get_user_db(interaction, user_discord_id)
             else:
-                user_details = await self.db.get_user_by_username(name)
+                user_details = None
 
         return user_details
 
