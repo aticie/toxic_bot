@@ -55,7 +55,13 @@ class Database:
         :param discord_id: Discord user id
         :return: Osu related properties of user
         """
-        return await self.c.hgetall(f"{discord_id}")
+        result = await self.c.hgetall(f"{discord_id}")
+
+        # Empty dictionaries evaluate to False
+        if not bool(result):
+            # If it's an empty dict -> should be None
+            result = None
+        return result
 
     async def close(self):
         """
