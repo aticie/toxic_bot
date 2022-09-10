@@ -29,6 +29,7 @@ class Profile(commands.Cog):
         """Link the discord account to user's osu! account"""
         embed = await self._link_core(ctx.author.id)
         await ctx.author.send(embed=embed)
+        await ctx.message.add_reaction('📩')
 
     @nextcord.slash_command(name="link",
                             description="Links your osu! account to your discord account.")
