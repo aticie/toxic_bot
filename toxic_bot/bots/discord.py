@@ -45,7 +45,10 @@ class DiscordOsuBot(commands.Bot, ABC):
 
     async def get_prefix(self, message):
         """Gets the prefixes linked with servers from the database."""
-        prefixes = await self.db.get_prefix(message.guild.id)
+        if not message.guild.id:
+            prefixes = [self.default_prefix]
+        else:
+            prefixes = await self.db.get_prefix(message.guild.id)
         if prefixes is None:
             prefixes = [self.default_prefix]
 

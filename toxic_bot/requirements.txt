@@ -1,4 +1,4 @@
-nextcord==2.0.0
+nextcord==2.2.0
 rosu-pp-py==0.7.2
 ossapi==2.3.0
 colour==0.1.5
