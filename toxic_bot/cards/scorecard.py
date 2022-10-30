@@ -59,7 +59,7 @@ class ImageScoreCard(ScoreCard, ABC):
                          url=f"https://osu.ppy.sh/users/{self.score.user.id}",
                          icon_url=self.score.user.avatar_url)
         embed.set_image(url="attachment://score.png")
-        footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.fromisoformat(self.score.created_at))
+        footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.strptime(self.score.created_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc))
         embed.set_footer(text=f'▸ Score set {footer_time}Ago')
         return embed, file
 
