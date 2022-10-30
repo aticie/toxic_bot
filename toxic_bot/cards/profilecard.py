@@ -226,7 +226,6 @@ class ImageProfileCard(ProfileCard):
         country_flag_url += f'{code_nums}.svg'
         country_flag_path = await download_and_save_asset(country_flag_url)
         country_flag_rlg = svg2rlg(country_flag_path)
-        country_flag_rlg.scale(1.5, 1.5)
         country_flag = renderPM.drawToPIL(country_flag_rlg, dpi=72 * 1.5, bg=0x00000)
         country_flag = country_flag.convert('RGBA')
         img_data = country_flag.getdata()
