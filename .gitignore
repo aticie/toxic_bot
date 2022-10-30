@@ -3,3 +3,5 @@ venv/
 assets
 !assets/fonts
 !assets/icons
+target
+cargo.lock
