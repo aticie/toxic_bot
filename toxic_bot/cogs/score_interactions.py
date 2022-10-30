@@ -243,7 +243,7 @@ class ScoreInteractions(commands.Cog):
                 player_rank = play.rank
                 player_statistics = play.statistics
                 player_miss = player_statistics.miss if hasattr(player_statistics, "miss") else 0
-                play_ts = int(datetime.datetime.fromisoformat(play.ended_at).timestamp())
+                play_ts = int(datetime.datetime.strptime(play.ended_at, "%Y-%m-%dT%H:%M:%SZ").timestamp())
                 player_url = f"https://osu.ppy.sh/users/{player_id}"
                 embed_desc += f"**{i + offset + 1}. [{player_name}]({player_url})** - <t:{play_ts}:d>\n"
                 if player_pp is None:
