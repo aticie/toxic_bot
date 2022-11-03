@@ -8,7 +8,7 @@ import nextcord
 from PIL import Image, ImageFilter, ImageDraw
 from ossapi import Mod
 from ossapi.enums import Grade
-from rosu_pp_py import Calculator, ScoreParams
+from rosu_pp_py import Calculator, Beatmap, DifficultyAttributes, BeatmapAttributes, PerformanceAttributes
 
 from toxic_bot.helpers.http_downloader import download_and_save_asset, download_and_save_beatmap
 from toxic_bot.helpers.image import PPTextBox, ScoreBox, StarRatingTextBox, TitleTextBox, DifficultyTextBox, \
@@ -59,7 +59,9 @@ class ImageScoreCard(ScoreCard, ABC):
                          url=f"https://osu.ppy.sh/users/{self.score.user.id}",
                          icon_url=self.score.user.avatar_url)
         embed.set_image(url="attachment://score.png")
-        footer_time = time_ago(datetime.now(tz=timezone.utc), datetime.strptime(self.score.created_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc))
+        footer_time = time_ago(datetime.now(tz=timezone.utc),
+                               datetime.strptime(self.score.created_at, "%Y-%m-%dT%H:%M:%SZ").replace(
+                                   tzinfo=timezone.utc))
         embed.set_footer(text=f'▸ Score set {footer_time}Ago')
         return embed, file
 
@@ -75,18 +77,21 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
     async def draw_image(self, score: SimpleNamespace):
         cover_image_path = await download_and_save_asset(score.beatmapset.covers.__getattribute__('card@2x'))
         beatmap_path = await download_and_save_beatmap(score.beatmap.id)
-        calculator = Calculator(beatmap_path)
+        bmap = Beatmap(path=beatmap_path)
         mods = Mod(score.mods)
-        [rosupp_result] = calculator.calculate(ScoreParams(mods=mods.value,
-                                                           n300=score.statistics.count_300,
-                                                           n100=score.statistics.count_100,
-                                                           n50=score.statistics.count_50,
-                                                           nMisses=score.statistics.count_miss,
-                                                           combo=score.max_combo))
+        calculator = Calculator(mods=mods.value,
+                                n300=score.statistics.count_300,
+                                n100=score.statistics.count_100,
+                                n50=score.statistics.count_50,
+                                n_misses=score.statistics.count_miss,
+                                combo=score.max_combo)
+        curr_perf: PerformanceAttributes = calculator.performance(bmap)
+        rosu_bmap: BeatmapAttributes = calculator.map_attributes(bmap)
+        rosu_diff: DifficultyAttributes = calculator.difficulty(bmap)
         beatmap = score.beatmap
-        beatmap.max_combo = rosupp_result.maxCombo
-        beatmap.difficulty_rating = rosupp_result.stars
-        score.pp = rosupp_result.pp
+        beatmap.max_combo = rosu_diff.max_combo
+        beatmap.difficulty_rating = rosu_diff.stars
+        score.pp = curr_perf.pp
         score.accuracy *= 100
 
         try:
@@ -125,15 +130,31 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
         ModsIcon(mods).draw(cover, Point(cover.width - right_offset + 80, 130))
         ScoreGradeVisual(score_grade).draw(cover_draw, Point(cover.width - right_offset + 160, 40))
         PPTextBox(score.pp, score_grade).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 90))
-        [if_FC_result] = calculator.calculate(ScoreParams(mods=mods.value,
-                                                          n300=score.statistics.count_300,
-                                                          n100=score.statistics.count_100,
-                                                          n50=score.statistics.count_50,
-                                                          nMisses=0,
-                                                          combo=beatmap.max_combo))
-        IfFCTextBox(if_FC_result.pp).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 30))
+        if_fc_calculator = Calculator(mods=mods.value,
+                                      n300=score.statistics.count_300,
+                                      n100=score.statistics.count_100,
+                                      n50=score.statistics.count_50,
+                                      n_misses=0,
+                                      combo=beatmap.max_combo)
+        if_fc_perf = if_fc_calculator.performance(bmap)
+        if_fc_pp = if_fc_perf.pp
+        if not self.check_score_fc(score, score.pp, if_fc_pp, beatmap.max_combo):
+            IfFCTextBox(if_fc_pp).draw(cover_draw, Point(cover.width - right_offset + 150, cover.height - 30))
 
         return cover
+
+    @staticmethod
+    def check_score_fc(score, score_pp, if_fc_pp, beatmap_combo):
+        if score.rank == "F":
+            return False
+
+        if float(score_pp) / float(if_fc_pp) > 0.95:
+            return True
+
+        if int(score.max_combo) / int(beatmap_combo) > 0.95:
+            return True
+
+        return False
 
     async def to_embed(self) -> Tuple[nextcord.Embed, nextcord.File]:
         """
