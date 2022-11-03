@@ -29,7 +29,7 @@ class TextBox:
         if max_width is None:
             max_width = text_width
         position = Point(position[0], position[1])
-        self.text, width, height = self.clamp_text(self.font, self.text, max_width)
+        self.text, width, height = self.clamp_text(max_width)
         draw.text(position, self.text, fill=self.color, font=self.font, anchor=self.anchor,
                   stroke_width=self.stroke_width, stroke_fill=self.stroke_width)
 
@@ -41,20 +41,41 @@ class TextBox:
         height += offset_y
         return width, height
 
-    @staticmethod
-    def clamp_text(font, title_text, max_width):
-        initial_text = title_text
-        title_width, title_height = TextBox.get_real_textsize(title_text, font)
+    def clamp_text(self, max_width):
+        initial_text = self.text
+        title_width, title_height = TextBox.get_real_textsize(self.text, self.font)
         while title_width > max_width:
-            title_text = title_text[:-1]
-            title_width, title_height = TextBox.get_real_textsize(title_text, font)
+            initial_text = initial_text[:-1]
+            title_width, title_height = TextBox.get_real_textsize(initial_text, self.font)
 
-        new_text = title_text.strip()
+        new_text = self.text.strip()
         if new_text != initial_text:
             new_text = new_text[:-3] + '...'
 
-        title_width, title_height = TextBox.get_real_textsize(new_text, font)
+        title_width, title_height = TextBox.get_real_textsize(new_text, self.font)
         return new_text, title_width, title_height
+
+
+class ScalableTextBox(TextBox):
+    def draw(self, draw: ImageDraw.ImageDraw, position: Point, max_width: int = None):
+        text_width, text_height = self.get_real_textsize(self.text, self.font)
+        if max_width is None:
+            max_width = text_width
+        position = Point(position[0], position[1])
+        font_size = self.scale_text(max_width)
+        font = ImageFont.truetype(self.font.path, font_size)
+        draw.text(position, self.text, fill=self.color, font=font, anchor=self.anchor,
+                  stroke_width=self.stroke_width, stroke_fill=self.stroke_width)
+
+    def scale_text(self, max_width):
+        font_size = self.font.size
+        title_width, title_height = TextBox.get_real_textsize(self.text, self.font)
+        while title_width > max_width:
+            font_size = font_size - 1
+            new_font = ImageFont.truetype(self.font.path, font_size)
+            title_width, title_height = TextBox.get_real_textsize(self.text, new_font)
+
+        return font_size
 
 
 class TitleTextBox(TextBox):
@@ -69,7 +90,7 @@ class DifficultyTextBox(TextBox):
         super().__init__(text, color, font_size=24)
 
 
-class JudgementTextBox(TextBox):
+class JudgementTextBox(ScalableTextBox):
     def __init__(self, judgement: tuple, judgement_color, box_width):
         self.judgement_text, self.text = judgement
         color = (255, 255, 255, 255)
@@ -85,7 +106,7 @@ class JudgementTextBox(TextBox):
     def draw(self, draw: ImageDraw.ImageDraw, position: Point, max_width: int = None):
         self.draw_judgement_text(draw, position)
         text_position = position + Point(self.judgement_width // 2, self.judgement_box_to_text_margin)
-        super(JudgementTextBox, self).draw(draw, text_position, max_width)
+        super(JudgementTextBox, self).draw(draw, text_position, max_width - 5)
 
     def draw_judgement_text(self, draw: ImageDraw.ImageDraw, position: Point):
         text_width, text_height = self.get_real_textsize(self.judgement_text, self.judgement_font)
