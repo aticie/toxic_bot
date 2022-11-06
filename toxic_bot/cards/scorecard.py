@@ -145,7 +145,7 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
 
     @staticmethod
     def check_score_fc(score, score_pp, if_fc_pp, beatmap_combo):
-        if score.rank == "F":
+        if score.rank == "F" or score.statistics.count_miss > 0:
             return False
 
         if float(score_pp) / float(if_fc_pp) > 0.95:
