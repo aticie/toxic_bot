@@ -35,8 +35,7 @@ class TextBox:
 
     @staticmethod
     def get_real_textsize(text, font):
-        offset_x, offset_y = font.getoffset(text)
-        width, height = font.getsize(text)
+        offset_x, offset_y, width, height = font.getbbox(text)
         width += offset_x
         height += offset_y
         return width, height

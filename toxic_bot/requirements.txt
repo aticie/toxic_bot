@@ -1,8 +1,10 @@
 nextcord==2.2.0
-rosu-pp-py==0.9.1
-ossapi>=2.4.1,<3.0.0
+rosu-pp-py==0.9.4
+ossapi==3.3.2
 colour==0.1.5
 numpy==1.21.4
 aioredis==2.0.1
 svglib==1.2.1
+rlPyCairo==0.3.0
 cryptography==36.0.1
+pillow==10.0.0

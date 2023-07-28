@@ -98,7 +98,7 @@ class SingleImageScoreCard(ImageScoreCard, ABC):
             cover = Image.open(cover_image_path)
         except PIL.UnidentifiedImageError:
             cover = Image.new('RGB', (800, 280), (45, 45, 45))
-        cover = cover.resize((800, 280), Image.ANTIALIAS)
+        cover = cover.resize((800, 280), Image.LANCZOS)
         cover = cover.filter(ImageFilter.GaussianBlur(radius=1.25))
         cover_draw = ImageDraw.Draw(cover, "RGBA")
         cover_draw.rounded_rectangle((Point(10, 10), Point(cover.width - 10, cover.height - 10)), radius=10,

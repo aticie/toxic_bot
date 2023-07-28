@@ -5,7 +5,7 @@ import nextcord
 from PIL import Image, ImageFont
 from PIL import ImageDraw
 from colour import Color
-from reportlab.graphics import renderPM
+from reportlab.graphics.renderPM import drawToPIL
 from svglib.svglib import svg2rlg
 
 from toxic_bot.helpers.http_downloader import download_and_save_asset
@@ -226,7 +226,7 @@ class ImageProfileCard(ProfileCard):
         country_flag_url += f'{code_nums}.svg'
         country_flag_path = await download_and_save_asset(country_flag_url)
         country_flag_rlg = svg2rlg(country_flag_path)
-        country_flag = renderPM.drawToPIL(country_flag_rlg, dpi=72 * 1.5, bg=0x00000)
+        country_flag = drawToPIL(country_flag_rlg, dpi=72 * 1.5, bg=0x00000)
         country_flag = country_flag.convert('RGBA')
         img_data = country_flag.getdata()
         newData = []

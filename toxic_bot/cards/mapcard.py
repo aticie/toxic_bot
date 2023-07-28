@@ -29,24 +29,15 @@ class EmbedMapCard(MapCard, ABC):
         Generates an embed object for the beatmap information.
         """
         beatmap_path = await download_and_save_beatmap(self.beatmap.id)
-        beatmap_calculator = rosu.Calculator(beatmap_path)
-        params = [rosu.ScoreParams(mods=self.mods.value,
-                                   combo=self.beatmap.max_combo),
-                  rosu.ScoreParams(mods=self.mods.value,
-                                   combo=self.beatmap.max_combo,
-                                   acc=100),
-                  rosu.ScoreParams(mods=self.mods.value,
-                                   combo=self.beatmap.max_combo,
-                                   acc=99),
-                  rosu.ScoreParams(mods=self.mods.value,
-                                   combo=self.beatmap.max_combo,
-                                   acc=97),
-                  rosu.ScoreParams(mods=self.mods.value,
-                                   combo=self.beatmap.max_combo,
-                                   acc=95)
-                  ]
-
-        rosu_pp_results = beatmap_calculator.calculate(params)
+        beatmap = rosu.Beatmap(path=beatmap_path)
+        calc = rosu.Calculator(mods=self.mods.value)
+        map_attributes = calc.map_attributes(beatmap)
+        diff_attributes = calc.difficulty(beatmap)
+        rosu_pp_results = []
+        for acc in [100, 99, 97, 95]:
+            calc.set_acc(acc)
+            perf = calc.performance(beatmap)
+            rosu_pp_results.append(perf)
         rosu_pp_result = rosu_pp_results[0]
         beatconnect_link = f"https://beatconnect.io/b/{self.beatmapset.id}/"
         bancho_link = f"https://osu.ppy.sh/beatmapsets/{self.beatmapset.id}/download"
@@ -67,24 +58,24 @@ class EmbedMapCard(MapCard, ABC):
         bmap_mins = self.beatmap.total_length // 60
         bmap_secs = self.beatmap.total_length % 60
 
-        diff_details_text = f"**▸CS:** {rosu_pp_result.cs:.1f} **▸AR:** {rosu_pp_result.ar:.1f} **▸OD:**" \
-                            f" {rosu_pp_result.od:.1f} **▸HP:** {rosu_pp_result.hp:.1f}"
+        diff_details_text = f"**▸CS:** {map_attributes.cs:.1f} **▸AR:** {diff_attributes.ar:.1f} **▸OD:**" \
+                            f" {diff_attributes.od:.1f} **▸HP:** {map_attributes.hp:.1f}"
         desc_text = f"<:total_length:680709852988833802> **{bmap_mins}:{bmap_secs:02d}**" \
-                    f" <:bpm:680709843060916292> **{rosu_pp_result.bpm:.0f} bpm**" \
-                    f"  <:count_circles:680712754273058817> **{rosu_pp_result.nCircles}** " \
-                    f" <:count_sliders:680712747012325409> **{rosu_pp_result.nSliders}**\n" \
+                    f" <:bpm:680709843060916292> **{map_attributes.bpm:.0f} bpm**" \
+                    f"  <:count_circles:680712754273058817> **{map_attributes.n_circles}** " \
+                    f" <:count_sliders:680712747012325409> **{map_attributes.n_sliders}**\n" \
                     f"{diff_details_text} \n" \
                     f"{download_text}\n"
 
-        pp_values = [result.pp for result in rosu_pp_results[-2::-1]]
+        pp_values = [result.pp for result in rosu_pp_results]
         pp_values_text = f'```Acc |{"95%":^8}|{"97%":^8}|{"99%":^8}|{"100%":^8}|\n' \
                          f'----|' + '-' * 8 + '|' + '-' * 8 + '|' + '-' * 8 + '|' + '-' * 8 + '|' + '\n' \
-                                                                                                    f' PP |{pp_values[0]:^8.2f}|{pp_values[1]:^8.2f}|{pp_values[2]:^8.2f}|{pp_values[3]:^8.2f}|```'
+                         f' PP |{pp_values[3]:^8.2f}|{pp_values[2]:^8.2f}|{pp_values[1]:^8.2f}|{pp_values[0]:^8.2f}|```'
 
         embed = nextcord.Embed()
         embed.set_author(name=f"{self.beatmapset.artist} - {self.beatmapset.title} by {self.beatmapset.creator}",
                          url=self.beatmap.url)
-        embed.add_field(name=f"**[{self.beatmap.version}]** {rosu_pp_result.stars:.2f}★", value=desc_text, inline=False)
+        embed.add_field(name=f"**[{self.beatmap.version}]** {diff_attributes.stars:.2f}★", value=desc_text, inline=False)
         embed.add_field(name="PP values", value=pp_values_text, inline=False)
         embed.set_image(url=self.beatmapset.covers.cover)
 
