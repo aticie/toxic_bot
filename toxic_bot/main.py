@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import logging
 import sys
 import traceback
@@ -46,9 +47,10 @@ initial_extensions = ["cogs.score_interactions",
                       "cogs.map_interactions",
                       "cogs.profile"]
 
-
 intents = nextcord.Intents.default()
 intents.message_content = True
+intents.members = True
+intents.voice_states = True
 
 bot = DiscordOsuBot(default_prefix=default_prefix,
                     osu_client_id=args.client_id,
@@ -94,6 +96,7 @@ async def on_command_error(ctx: Context, exception: errors.CommandError):
 
     await ctx.send(embed=embed)
 
+
 @bot.event
 async def on_application_command_error(interaction: Interaction, exception: nextcord.ApplicationError):
     """
@@ -111,7 +114,6 @@ async def on_application_command_error(interaction: Interaction, exception: next
     await interaction.send(embed=embed)
 
 
-
 @bot.event
 async def on_error(event: str, *args, **kwargs):
     exception = sys.exc_info()
@@ -124,6 +126,39 @@ async def on_error(event: str, *args, **kwargs):
         exception_text = str(exception[1])
         embed.description = exception_text
         await interaction.send(embed=embed)
+
+
+@bot.event
+async def on_message_delete(message: nextcord.Message):
+    guild_channels = bot.get_guild(571853176752308244).channels
+    channel = bot.get_channel(825139115229315082)
+
+    if message.channel in guild_channels:
+        embed = nextcord.Embed(title=f'#{message.channel}',
+                               description=f'{message.author.mention}: {message.content}')
+        await channel.send(embed=embed)
+    return
+
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    guild_channels = bot.get_guild(571853176752308244).channels
+    channel = bot.get_channel(825109303710318592)
+
+    if before.channel is None and after.channel in guild_channels:
+        embed = nextcord.Embed(title="Voice Channel Join",
+                               description=f'{member.mention} joined the voice channel {after.channel.name}',
+                               color=nextcord.Colour.dark_green())
+    elif after.channel is None and before.channel in guild_channels:
+        embed = nextcord.Embed(title="Voice Channel Leave",
+                               description=f'{member.mention} left the voice channel {before.channel.name}',
+                               color=nextcord.Colour.dark_red())
+    else:
+        return
+
+    now = datetime.datetime.now()
+    embed.set_footer(text=f"<t:{now.timestamp()}:R>", icon_url=member.avatar.url)
+    await channel.send(embed=embed)
 
 
 @commands.check
