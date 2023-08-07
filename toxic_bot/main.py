@@ -138,13 +138,13 @@ async def on_message_delete(message: nextcord.Message):
         embed = nextcord.Embed(title=f'#{message.channel}',
                                description=f'{message.author.mention}: {message.content}',
                                timestamp=now)
-        embed.set_author(name=member.mention, icon_url=member.avatar.url)
+        embed.set_author(name=message.author.name, icon_url=message.author.avatar.url)
         await channel.send(embed=embed)
     return
 
 
 @bot.event
-async def on_voice_state_update(member, before, after):
+async def on_voice_state_update(member: nextcord.Member, before, after):
     guild_channels = bot.get_guild(571853176752308244).channels
     channel = bot.get_channel(825109303710318592)
 
@@ -162,7 +162,7 @@ async def on_voice_state_update(member, before, after):
     else:
         return
 
-    embed.set_author(name=member.mention, icon_url=member.avatar.url)
+    embed.set_author(name=member.name, icon_url=member.avatar.url)
     await channel.send(embed=embed)
 
 
