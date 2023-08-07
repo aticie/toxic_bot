@@ -134,8 +134,10 @@ async def on_message_delete(message: nextcord.Message):
     channel = bot.get_channel(825139115229315082)
 
     if message.channel in guild_channels:
+        now = datetime.datetime.now()
         embed = nextcord.Embed(title=f'#{message.channel}',
                                description=f'{message.author.mention}: {message.content}')
+        embed.set_footer(text=f"<t:{int(now.timestamp())}:R>", icon_url=member.avatar.url)
         await channel.send(embed=embed)
     return
 
