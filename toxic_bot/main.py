@@ -136,8 +136,9 @@ async def on_message_delete(message: nextcord.Message):
     if message.channel in guild_channels:
         now = datetime.datetime.now()
         embed = nextcord.Embed(title=f'#{message.channel}',
-                               description=f'{message.author.mention}: {message.content}')
-        embed.set_footer(text=f"<t:{int(now.timestamp())}:R>", icon_url=member.avatar.url)
+                               description=f'{message.author.mention}: {message.content}',
+                               timestamp=now)
+        embed.set_footer(icon_url=member.avatar.url)
         await channel.send(embed=embed)
     return
 
@@ -147,19 +148,21 @@ async def on_voice_state_update(member, before, after):
     guild_channels = bot.get_guild(571853176752308244).channels
     channel = bot.get_channel(825109303710318592)
 
+    now = datetime.datetime.now()
     if before.channel is None and after.channel in guild_channels:
         embed = nextcord.Embed(title="Voice Channel Join",
                                description=f'{member.mention} joined the voice channel {after.channel.name}',
-                               color=nextcord.Colour.dark_green())
+                               color=nextcord.Colour.dark_green(),
+                               timestamp=now)
     elif after.channel is None and before.channel in guild_channels:
         embed = nextcord.Embed(title="Voice Channel Leave",
                                description=f'{member.mention} left the voice channel {before.channel.name}',
-                               color=nextcord.Colour.dark_red())
+                               color=nextcord.Colour.dark_red(),
+                               timestamp=now)
     else:
         return
 
-    now = datetime.datetime.now()
-    embed.set_footer(text=f"<t:{int(now.timestamp())}:R>", icon_url=member.avatar.url)
+    embed.set_footer(icon_url=member.avatar.url)
     await channel.send(embed=embed)
 
 
