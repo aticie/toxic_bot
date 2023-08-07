@@ -138,7 +138,7 @@ async def on_message_delete(message: nextcord.Message):
         embed = nextcord.Embed(title=f'#{message.channel}',
                                description=f'{message.author.mention}: {message.content}',
                                timestamp=now)
-        embed.set_footer(icon_url=member.avatar.url)
+        embed.set_author(name=member.mention, icon_url=member.avatar.url)
         await channel.send(embed=embed)
     return
 
@@ -162,7 +162,7 @@ async def on_voice_state_update(member, before, after):
     else:
         return
 
-    embed.set_footer(icon_url=member.avatar.url)
+    embed.set_author(name=member.mention, icon_url=member.avatar.url)
     await channel.send(embed=embed)
 
 
