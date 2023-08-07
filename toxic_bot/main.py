@@ -157,7 +157,7 @@ async def on_voice_state_update(member, before, after):
         return
 
     now = datetime.datetime.now()
-    embed.set_footer(text=f"<t:{now.timestamp()}:R>", icon_url=member.avatar.url)
+    embed.set_footer(text=f"<t:{int(now.timestamp())}:R>", icon_url=member.avatar.url)
     await channel.send(embed=embed)
 
 
